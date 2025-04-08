@@ -9,7 +9,7 @@ import AuthModal from './Auth/AuthForm';
 
 function Header() {
 
-  const { isLoggedIn, loading } = useAuth();
+  const { isAuthenticated, authLoading } = useAuth();
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
@@ -40,17 +40,14 @@ function Header() {
         {/* Center Section (Always Centered) */}
         <div className="flex justify-center">
           <div className="h-[50px] w-[50px] bg-grey text-white">
-            {loading? "Loading..." : "loaded"}
-
+              {isAuthenticated ? "User Avatar" : "Logo"}
           </div>
         </div>
 
         {/* Right Section */}
         <div className="flex justify-end">
-          {loading ? 
-            "header.tsx" 
-            :
-            isLoggedIn ? 
+          {  
+            isAuthenticated ? 
               <AnimatedCTAButton_LoggedIn cart_alerts={3}/>
                : 
               <AnimatedCTAButton_LoggedOut onSignInClick={handleSignInClick} />

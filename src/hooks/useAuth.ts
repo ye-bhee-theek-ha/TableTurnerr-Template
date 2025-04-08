@@ -1,94 +1,145 @@
-
-import { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../lib/store/store';
-import { 
-  registerUser, 
-  loginUser, 
-  logoutUser, 
+// lib/hooks/useAuth.ts
+import { useCallback } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import type { RootState, AppDispatch } from '@/lib/store/store';
+import {
+  checkAuthStatus,
+  loginUserWithToken,
+  logoutUser,
+  registerUser,
   sendPhoneVerification,
   verifyPhone,
-  fetchCurrentUser,
-  clearError
-} from '../lib/slices/authSlice';
-import { User } from 'firebase/auth';
+  clearAuthError,
+  // Import specific types if needed, e.g., RegisterPayload, VerifyPhonePayload
+  type RegisterPayload,
+  type VerifyPhonePayload,
+} from '@/lib/slices/authSlice';
 
-const useAuth = () => {
+/**
+ * Custom hook for accessing authentication state and dispatching auth actions.
+ * Provides a centralized and optimized way to interact with the auth system.
+ */
+export const useAuth = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const auth = useSelector((state: RootState) => state.auth);
-  
-  useEffect(() => {
-    // TODO clear logs
-    console.log("useAuth effect triggered - auth:", auth);
 
-    // Check for current user on initial load
-    dispatch(fetchCurrentUser());
+  // Selectors for relevant auth state pieces
+  const {
+    isAuthenticated,
+    user,
+    loading: authLoading, // Renamed to avoid conflict if components use 'loading'
+    error: authError,     // Renamed for clarity
+    phoneVerificationId,
+    phoneVerificationLoading,
+    phoneVerificationError,
+    registrationLoading,
+    registrationError,
+    loginLoading,
+    loginError,
+    logoutLoading,
+    logoutError,
+  } = useSelector((state: RootState) => state.auth); // Assuming 'auth' is the slice name in your root reducer
 
-    console.log("Current user fetched - auth:", auth);
+  // --- Action Dispatchers ---
+  // Use useCallback to memoize dispatcher functions, preventing unnecessary re-renders
+  // in components that consume this hook, especially if passed as props.
+
+  const checkStatus = useCallback(() => {
+    // Returns the promise for potential chaining or await in components
+    return dispatch(checkAuthStatus());
   }, [dispatch]);
-  
-  const signup = async (email: string, password: string, displayName: string, phoneNumber:string) => {
+
+  const loginWithToken = useCallback((idToken: string) => {
+    return dispatch(loginUserWithToken(idToken));
+  }, [dispatch]);
+
+  const logout = useCallback(() => {
+    return dispatch(logoutUser());
+  }, [dispatch]);
+
+  const register = useCallback(async (payload: RegisterPayload) => {
+    const dispatchedActionPromise = dispatch(registerUser(payload));
+
     try {
-      await dispatch(registerUser({ email, password, displayName, phoneNumber })).unwrap();
-      return true;
-    } catch (error) {
-      return false;
+
+      const result = await dispatchedActionPromise.unwrap();
+      console.log("Registration thunk fulfilled successfully via unwrap.");
+      return result; // Return the success payload if any
+    } catch (rejectedValueOrError) {
+
+      console.error("Registration thunk rejected:", rejectedValueOrError);
+      throw rejectedValueOrError; // Re-throw the error/rejection payload
     }
-  };
-  
-  const login = async (email: string, password: string) => {
-    try {
-      await dispatch(loginUser({ email, password })).unwrap();
-      return true;
-    } catch (error) {
-      return false;
+  }, [dispatch]);
+
+  // --- Updated sendVerificationCode ---
+  const sendVerificationCode = useCallback(async (phoneNumber: string): Promise<string | null> => {
+    // Ensure the reCAPTCHA container exists before dispatching
+    const recaptchaContainer = document.getElementById('recaptcha-container');
+    if (!recaptchaContainer) {
+      console.error("reCAPTCHA container 'recaptcha-container' not found in the DOM.");
+      // Return a rejected promise matching the expected types
+      return Promise.reject(new Error("reCAPTCHA container not found"));
     }
-  };
-  
-  const logout = async () => {
+
     try {
-      await dispatch(logoutUser()).unwrap();
-      return true;
-    } catch (error) {
-      return false;
-    }
-  };
-  
-  const sendVerification = async (phoneNumber: string) => {
-    try {
-      const verificationId = await dispatch(sendPhoneVerification(phoneNumber)).unwrap();
-      return verificationId;
-    } catch (error) {
+      const resultAction = await dispatch(sendPhoneVerification(phoneNumber));
+      const verificationIdResult = await resultAction.payload; // Access the payload which holds the ID on success
+      const dispatchedActionPromise = dispatch(sendPhoneVerification(phoneNumber));
+      const verificationIdResultUnwrapped = await dispatchedActionPromise.unwrap();
+
+      return verificationIdResultUnwrapped;
+    } catch (error: any) {
+     
+      console.error("sendVerificationCode hook caught error:", error);
+
       return null;
     }
-  };
-  
-  const verifyCode = async (verificationId: string, verificationCode: string, user: User) => {
-    try {
-      await dispatch(verifyPhone({ verificationId, verificationCode, user })).unwrap();
-      return true;
-    } catch (error) {
-      return false;
+  }, [dispatch]);
+
+
+  // --- Updated verifyCode ---
+  // This function now directly expects the payload required by the verifyPhone thunk
+  const verifyCode = useCallback((payload: VerifyPhonePayload) => {
+
+    if (!payload.verificationId) {
+         console.error("Cannot verify code: verificationId is missing in payload.");
+         return Promise.reject(new Error("Verification ID is missing in payload"));
     }
-  };
-  
-  const clearAuthError = () => {
-    dispatch(clearError());
-  };
-  
+    return dispatch(verifyPhone(payload));
+    // Consider unwrapping if the component needs direct success/failure feedback beyond state updates
+    // Example: return dispatch(verifyPhone(payload)).unwrap();
+  }, [dispatch]);
+
+  const clearError = useCallback(() => {
+    dispatch(clearAuthError());
+  }, [dispatch]);
+
+  // --- Returned Values ---
+  // Return state variables and action dispatchers
   return {
-    user: auth.user,
-    loading: auth.loading,
-    isLoggedIn: auth.user !== null,
-    error: auth.error,
-    phoneVerificationSent: auth.phoneVerificationSent,
-    phoneVerified: auth.phoneVerified,
-    signup,
-    login,
+    // State
+    isAuthenticated,
+    user,
+    authLoading, // General loading (checkAuthStatus)
+    authError,   // General error (checkAuthStatus)
+    phoneVerificationId, // ID needed for verifyCode step
+    phoneVerificationLoading,
+    phoneVerificationError,
+    registrationLoading,
+    registrationError,
+    loginLoading,
+    loginError,
+    logoutLoading,
+    logoutError,
+
+    // Actions
+    checkStatus,
+    loginWithToken,
     logout,
-    sendVerification,
+    register,
+    sendVerificationCode,
     verifyCode,
-    clearAuthError
+    clearError, // Expose the error clearing action
   };
 };
 

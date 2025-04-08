@@ -7,21 +7,45 @@ export interface Address {
   isDefault: boolean;
 }
 
-export interface UserState {
-  profile: {
-    displayName: string;
-    email: string;
-    phoneNumber: string;
-    loyaltyPoints: number;
-    role: "customer" | "employee" | "admin";
-    photoURL?: string | null;
-    
-  } | null;
+
+export interface User {
+  uid: string;
+  email?: string | null;
+  displayName?: string | null;
+  role?: 'customer' | 'employee' | 'admin';
+  phoneNumber?: string | null;
+  loyaltyPoints?: number;
+  photoURL?: string | null;
+  phoneVerified?: boolean; 
   addresses: Address[];
-  loading: boolean;
-  error: string | null;
 }
 
+export interface AuthState {
+  isAuthenticated: boolean;
+  user: User | null; 
+  loading: 'idle' | 'pending' | 'succeeded' | 'failed'; 
+  error: string | null; 
+
+  phoneVerificationId: string | null;
+  phoneVerificationLoading: 'idle' | 'pending' | 'succeeded' | 'failed';
+  phoneVerificationError: string | null;
+
+  registrationLoading: 'idle' | 'pending' | 'succeeded' | 'failed';
+  registrationError: string | null;
+
+    loginLoading: 'idle' | 'pending' | 'succeeded' | 'failed';
+    loginError: string | null;
+
+    logoutLoading: 'idle' | 'pending' | 'succeeded' | 'failed';
+    logoutError: string | null;
+}
+
+export interface UserState {
+  profile: User | null;
+  addresses: Address[];
+  loading: 'idle' | 'pending' | 'succeeded' | 'failed';
+  error: string | null; // Store only the error message string
+}
 
 // resturant types
 export interface RestaurantInfo {

@@ -6,7 +6,7 @@ import defaultProfile from "@/../public/Svgs/profile.svg";
 import useUser from "@/hooks/useUser";
 import { motion, AnimatePresence } from "framer-motion";
 import { Address } from "@/constants/types";
-import useAuth from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { deleteUserAddress } from "@/lib/slices/userSlice";
 
 // Types for user data
@@ -23,7 +23,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onManageAddresses,
   onSignOut,
 }) => {
-  const { profile, addresses, loading } = useUser();
+  const { profile, addresses, isLoading } = useUser();
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Handle clicking outside the modal to close it
@@ -43,7 +43,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   // Get default address
   const defaultAddress = addresses?.find(addr => addr.isDefault) || addresses?.[0];
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
         <div className="bg-white rounded-lg p-6 w-80 sm:w-96 shadow-xl text-center">
@@ -287,7 +287,7 @@ interface EditProfileModalProps {
 }
 
 const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose, onSave }) => {
-  const { profile, loading } = useUser();
+  const { profile, isLoading } = useUser();
   const [formData, setFormData] = useState({
     displayName: profile?.displayName || "",
     phoneNumber: profile?.phoneNumber || "",
@@ -453,7 +453,7 @@ const AddressManagementModal: React.FC<AddressManagementModalProps> = ({
   onDelete,
   onSetDefault
 }) => {
-  const { addresses, loading } = useUser();
+  const { addresses } = useUser();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Partial<Address> | null>(null);
   const [formData, setFormData] = useState<Partial<Address>>({
@@ -768,7 +768,7 @@ const AddressManagementModal: React.FC<AddressManagementModalProps> = ({
 
 // Main User Profile Component
 const UserProfile: React.FC = () => {
-  const { profile, loading, updateAddress, addAddress, updateProfile, deleteAddress, setDefaultAddress } = useUser();
+  const { profile, updateAddress, addAddress, updateProfile, deleteAddress, setDefaultAddress } = useUser();
   const {logout} = useAuth();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);

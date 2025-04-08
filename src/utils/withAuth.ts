@@ -1,106 +1,118 @@
-// utils/withAuth.js
+// middleware/withAuth.ts
+import { NextResponse, NextRequest } from 'next/server';
 import { adminAuth } from '@/lib/firebase/firebaseAdmin';
-import type { NextApiRequest, NextApiResponse, NextApiHandler } from 'next';
-import nookies from 'nookies';
 import { DecodedIdToken } from 'firebase-admin/auth';
 
-// Extend NextApiRequest to include the user property
-export interface AuthenticatedRequest extends NextApiRequest {
-  user: DecodedIdToken;
+export interface AuthResult {
+  user: DecodedIdToken | null;
+  error?: string;
+  status?: number;
 }
 
-// Define the type for the handler that expects an AuthenticatedRequest
-type AuthenticatedApiHandler = (
-  req: AuthenticatedRequest,
-  res: NextApiResponse
-) => void | Promise<void>;
+/**
+ * Authentication middleware for App Router routes
+ * Verifies the session cookie and returns user info or error
+ * @param request NextRequest object
+ * @param requiredRole Optional role required to access the route
+ */
+export async function verifyAuth(
+  request: NextRequest,
+  requiredRole?: string | string[]
+): Promise<AuthResult> {
+  // Get session cookie from request cookies
+  const sessionCookie = request.cookies.get('session')?.value || '';
+
+  if (!sessionCookie) {
+    return {
+      user: null,
+      error: 'Unauthorized: No session cookie',
+      status: 401
+    };
+  }
+
+  try {
+    // Verify the session cookie
+    const decodedToken = await adminAuth.verifySessionCookie(
+      sessionCookie,
+      true // Check for revocation
+    );
+
+    // Check for required role if specified
+    if (requiredRole) {
+      const userRole = decodedToken.role || 'customer'; // Assuming role is a custom claim
+      const rolesToCheck = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+      
+      if (!rolesToCheck.includes(userRole)) {
+        console.warn(`Role check failed: User ${decodedToken.uid} (${userRole}) tried to access route requiring ${rolesToCheck.join('/')}`);
+        return {
+          user: null,
+          error: 'Forbidden: Insufficient permissions',
+          status: 403
+        };
+      }
+    }
+
+    // Authentication successful
+    return {
+      user: decodedToken,
+      status: 200
+    };
+
+  } catch (error: any) {
+    console.error('Error verifying session cookie:', error);
+    
+    if (error.code === 'auth/session-cookie-revoked') {
+      return {
+        user: null,
+        error: 'Unauthorized: Session revoked',
+        status: 401
+      };
+    }
+    if (error.code === 'auth/session-cookie-expired') {
+      return {
+        user: null,
+        error: 'Unauthorized: Session expired',
+        status: 401
+      };
+    }
+    
+    return {
+      user: null,
+      error: 'Unauthorized: Invalid session cookie',
+      status: 401
+    };
+  }
+}
 
 /**
- * Higher-order function to protect API routes.
- * Verifies the session cookie and attaches user info to the request object.
- * @param handler The API route handler function.
- * @param requiredRole Optional role required to access the route.
+ * Helper function to create a protected route handler
+ * @param handler The function to run if authentication succeeds
+ * @param requiredRole Optional role required to access the route
  */
-export function withAuth(
-  handler: AuthenticatedApiHandler,
+export function withAuth<T>(
+  handler: (req: NextRequest, user: DecodedIdToken) => Promise<NextResponse<T>>,
   requiredRole?: string | string[]
-): NextApiHandler {
-  return async (req: NextApiRequest, res: NextApiResponse) => {
-    const cookies = nookies.get({ req });
-    const sessionCookie = cookies.session || '';
-
-    if (!sessionCookie) {
-      return res.status(401).json({ message: 'Unauthorized: No session cookie' });
-    }
-
-    try {
-      // Verify the session cookie. `checkRevoked` is true to check if the session was revoked.
-      const decodedToken = await adminAuth.verifySessionCookie(
-        sessionCookie,
-        true // Check for revocation
+) {
+  return async (request: NextRequest) => {
+    const authResult = await verifyAuth(request, requiredRole);
+    
+    if (!authResult.user) {
+      return NextResponse.json(
+        { message: authResult.error },
+        { status: authResult.status }
       );
-
-      // Check for required role if specified
-      if (requiredRole) {
-        const userRole = decodedToken.role || 'customer'; // Assuming role is a custom claim
-        const rolesToCheck = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-        if (!rolesToCheck.includes(userRole)) {
-           console.warn(`Role check failed: User ${decodedToken.uid} (${userRole}) tried to access route requiring ${rolesToCheck.join('/')}`);
-           return res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
-        }
-      }
-
-      // Add user info to the request object for the handler to use
-      // Cast req to AuthenticatedRequest before assigning user
-      (req as AuthenticatedRequest).user = decodedToken;
-
-      // Call the original handler
-      return await handler(req as AuthenticatedRequest, res);
-
-    } catch (error:any) {
-      console.error('Error verifying session cookie:', error);
-      // Clear potentially invalid cookie
-      nookies.destroy({ res }, 'session', { path: '/' });
-      if (error.code === 'auth/session-cookie-revoked') {
-        return res.status(401).json({ message: 'Unauthorized: Session revoked' });
-      }
-      if (error.code === 'auth/session-cookie-expired') {
-         return res.status(401).json({ message: 'Unauthorized: Session expired' });
-      }
-      return res.status(401).json({ message: 'Unauthorized: Invalid session cookie' });
     }
+    
+    // Call the handler with the authenticated user
+    return handler(request, authResult.user);
   };
 }
 
 /**
- * Middleware specifically for checking admin role.
- * Assumes 'admin' role is set as a custom claim or in the user's Firestore profile.
- * If checking claims: ensure 'role' claim is set via Admin SDK.
- * If checking Firestore: fetches profile, less performant but maybe simpler initially.
- *
- * This example checks a custom claim 'role'.
+ * Helper specifically for admin-only routes
  */
-export function withAdminAuth(handler: AuthenticatedApiHandler): NextApiHandler {
-   // Use withAuth, requiring the 'admin' role claim
-   return withAuth(handler, 'admin');
-
-   // --- Alternative: Check Firestore Profile (less recommended for pure auth check) ---
-   /*
-   return withAuth(async (req: AuthenticatedRequest, res: NextApiResponse) => {
-      try {
-         const userRef = adminDb.collection('users').doc(req.user.uid);
-         const doc = await userRef.get();
-         if (!doc.exists || doc.data()?.role !== 'admin') {
-            return res.status(403).json({ message: 'Forbidden: Requires admin privileges' });
-         }
-         // Role verified, proceed with the handler
-         return await handler(req, res);
-      } catch (error) {
-         console.error("Error checking admin role in Firestore:", error);
-         return res.status(500).json({ message: "Failed to verify admin role" });
-      }
-   });
-   */
+export function withAdminAuth<T>(
+  handler: (req: NextRequest, user: DecodedIdToken) => Promise<NextResponse<T>>
+) {
+  return withAuth(handler, 'admin');
 }
-
-

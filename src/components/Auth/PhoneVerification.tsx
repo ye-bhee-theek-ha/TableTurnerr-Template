@@ -1,17 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { clearRecaptchaVerifier } from '@/lib/firebase/services/auth';
+import type { VerifyPhonePayload } from '@/lib/slices/authSlice';
 
 interface PhoneVerificationFormProps {
   phoneNumber: string;
   onSendVerification: (phoneNumber: string) => Promise<string | null>;
-  onVerifyCode: (verificationId: string, verificationCode: string, user: any) => Promise<boolean>;
-  onResendCode: () => void;
-  loading: boolean;
-  error: string | null;
-  user: any;
+  onVerifyCode: (payload: VerifyPhonePayload) => Promise<any>;  onResendCode: () => void;
+  loading: "idle" | "pending" | "succeeded" | "failed";
+  error: string | null; 
+  user: any; 
   clearAuthError: () => void;
 }
 
@@ -29,82 +29,118 @@ const PhoneVerificationForm: React.FC<PhoneVerificationFormProps> = ({
   const [verificationCode, setVerificationCode] = useState('');
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [showVerificationInput, setShowVerificationInput] = useState(false);
-  const [verificationError, setVerificationError] = useState('');
+  const [localError, setLocalError] = useState('');
   const [verificationSuccess, setVerificationSuccess] = useState(false);
+  const [isSendingCode, setIsSendingCode] = useState(false);
 
+  const initialSendAttempted = useRef(false);
 
 
   useEffect(() => {
-    // Send verification code when component mounts
-    handleSendVerificationCode();
-    
-    // Cleanup function
+    if (!initialSendAttempted.current && phoneNumber) {
+        initialSendAttempted.current = true;
+        handleSendVerificationCode();
+    }
     return () => {
-      // Clear any reCAPTCHA when component unmounts
       clearRecaptchaVerifier();
     };
-  }, []);
-
+  }, [phoneNumber]);
 
   const handleSendVerificationCode = async () => {
-    setVerificationError('');
-    
-    // Format phone number to E.164 format if necessary
+    clearAuthError();
+    setLocalError('');
+    setVerificationSuccess(false);
+    setIsSendingCode(true);
+    setVerificationId(null); // Reset verificationId before sending
+    setShowVerificationInput(false); // Hide input while sending
+
     let formattedPhoneNumber = phoneNumber;
-    if (!phoneNumber.startsWith('+')) {
-      formattedPhoneNumber = `+${phoneNumber}`;
+    if (!formattedPhoneNumber.startsWith('+')) {
+      console.warn("Formatting phone number for E.164.");
+      formattedPhoneNumber = `+${phoneNumber.replace(/\D/g, '')}`;
     }
 
     try {
-      const result = await onSendVerification(formattedPhoneNumber);
-      
-      if (result) {
-        setVerificationId(result);
+      // Call onSendVerification, which now returns Promise<string | null>
+      const resultId = await onSendVerification(formattedPhoneNumber);
+
+      if (resultId) {
+        setVerificationId(resultId); // Store the received ID
         setShowVerificationInput(true);
       } else {
-        setVerificationError('Failed to send verification code. Please try again.');
+        // Failure is indicated by null or rejection, error state should be set by Redux
+        setLocalError('Failed to send verification code. Please try again or check the error message.'); // More specific local message
+        setShowVerificationInput(false);
       }
-    } catch (error) {
-      setVerificationError(`An error occurred while sending the verification code. Please try again. Error: ${error}`);
+    } catch (err: any) {
+      // Catch errors from the promise rejection (e.g., recaptcha container not found)
+      console.error("Error calling onSendVerification:", err);
+      setLocalError(err.message || 'An unexpected error occurred while sending the code.');
+      setShowVerificationInput(false);
+      // Redux state should also reflect the error via the 'error' prop
+    } finally {
+      setIsSendingCode(false);
     }
   };
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    setVerificationError('');
-    
-    if (!verificationCode.trim()) {
-      setVerificationError('Please enter the verification code');
+    clearAuthError();
+    setLocalError('');
+
+    if (!verificationCode.trim() || verificationCode.length !== 6) {
+      setLocalError('Please enter the 6-digit verification code.');
       return;
     }
 
-    if (verificationId && user) {
-      try {
-        const result = await onVerifyCode(verificationId, verificationCode, user);
-        
-        if (result) {
-          setVerificationSuccess(true);
-        } else {
-          setVerificationError('Invalid verification code. Please try again.');
+    // --- Updated Payload ---
+    // Ensure verificationId was successfully received and stored
+    if (verificationId) {
+        // Create the payload expected by the updated useAuth.verifyCode and the verifyPhone thunk
+        const payload: VerifyPhonePayload = {
+            verificationId: verificationId,
+            verificationCode: verificationCode,
+            // No longer need to pass 'user' here, thunk gets it internally
+        };
+
+        try {
+            // Call the onVerifyCode function passed via props
+            await onVerifyCode(payload);
+
+            // Assume success if onVerifyCode promise resolves without error.
+            // The Redux state (user.phoneVerified) should be updated by the thunk.
+            setVerificationSuccess(true);
+            clearRecaptchaVerifier(); // Clean up reCAPTCHA on success
+
+        } catch (err: any) {
+            // Errors are handled by Redux state (`error` prop) if using .unwrap() in hook,
+            // or caught here if the raw dispatch promise rejects.
+            console.error("Error calling onVerifyCode:", err);
+            setVerificationSuccess(false);
+            // Set local error *only if* the `error` prop isn't sufficient
+            // setLocalError(err.message || 'An error occurred during verification.');
         }
-      } catch (error) {
-        setVerificationError('An error occurred during verification. Please try again.');
-      }
     } else {
-      setVerificationError('Verification session expired. Please request a new code.');
+        // This indicates the verificationId wasn't obtained correctly earlier
+        setLocalError('Verification session is invalid or expired. Please request a new code.');
+        console.error("Verification error: verificationId is missing in component state.");
     }
   };
 
+
+  // --- Resend Code Logic ---
   const handleResend = () => {
     setVerificationCode('');
-    setVerificationId(null);
+    // verificationId is reset in handleSendVerificationCode
     setShowVerificationInput(false);
-    setVerificationError('');
+    setLocalError('');
+    setVerificationSuccess(false);
+    clearAuthError();
+    clearRecaptchaVerifier(); // Clear current verifier before trying again
 
-    clearRecaptchaVerifier();
-
-    
+    // Call parent handler first (optional, depends on parent logic)
     onResendCode();
+    // Re-initiate the send process
     handleSendVerificationCode();
   };
 
@@ -149,14 +185,14 @@ const PhoneVerificationForm: React.FC<PhoneVerificationFormProps> = ({
         </motion.div>
       )}
       
-      {verificationError && (
+      {localError && (
         <motion.div 
           variants={itemVariants}
           className="mb-4 p-3 bg-red-100 text-red-700 rounded"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
         >
-          {verificationError}
+          {localError}
         </motion.div>
       )}
       
@@ -220,12 +256,12 @@ const PhoneVerificationForm: React.FC<PhoneVerificationFormProps> = ({
               <motion.button
                 variants={itemVariants}
                 type="submit"
-                disabled={loading}
+                disabled={loading === "pending"}
                 className="w-full bg-primary text-white py-2 rounded hover:bg-primary/90 disabled:bg-primary/50 transition-colors duration-200 mb-2"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                {loading ? 'Verifying...' : 'Verify Code'}
+                {loading === "pending" ? 'Verifying...' : 'Verify Code'}
               </motion.button>
               
               <motion.button

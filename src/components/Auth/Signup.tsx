@@ -2,13 +2,15 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import type { RegisterPayload } from '@/lib/slices/authSlice';
+
 
 interface SignupFormProps {
   onSwitch: () => void;
-  onSignup: (email: string, password: string, displayName: string, phoneNumber: string) => Promise<boolean>;
-  onPhoneVerification: (phone: string) => void;
-  loading: boolean;
-  error: string | null;
+  onSignup: (payload: RegisterPayload) => Promise<any>; // Return type might vary based on thunk
+  onPhoneVerification: (phone: string) => void; // Keep this handler for switching view
+  loading: "idle" | "pending" | "succeeded" | "failed"
+  error: string | null; // Corresponds to registrationError from useAuth
   clearAuthError: () => void;
 }
 
@@ -75,17 +77,25 @@ const SignupForm: React.FC<SignupFormProps> = ({
 
   const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    clearAuthError(); // Clear previous auth errors on new submission attempt
+
     if (validateSignupForm()) {
-      const success = await onSignup(
-        signupData.email,
-        signupData.password,
-        signupData.displayName,
-        signupData.phoneNumber
-      );
-      
-      if (success) {
-        onPhoneVerification(signupData.phoneNumber);
+      // Create the payload object expected by the register function from useAuth
+      const payload: RegisterPayload = {
+        email: signupData.email,
+        password: signupData.password,
+        displayName: signupData.displayName,
+        phoneNumber: signupData.phoneNumber
+      };
+
+      try {
+
+        const resultAction = await onSignup(payload);
+
+        onPhoneVerification(signupData.phoneNumber); // Trigger phone verification UI switch
+
+      } catch (err) {
+        console.error("Signup failed:", err);
       }
     }
   };
@@ -254,12 +264,12 @@ const SignupForm: React.FC<SignupFormProps> = ({
         <motion.button
           variants={itemVariants}
           type="submit"
-          disabled={loading}
+          disabled={loading === "pending"}
           className="w-full bg-primary text-white py-2 rounded hover:bg-primary/90 disabled:bg-primary/50 transition-colors duration-200"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          {loading ? 'Creating Account...' : 'Sign Up'}
+          {loading === "pending" ? 'Creating Account...' : 'Sign Up'}
         </motion.button>
       </form>
       
