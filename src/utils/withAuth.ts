@@ -22,6 +22,9 @@ export async function verifyAuth(
   // Get session cookie from request cookies
   const sessionCookie = request.cookies.get('session')?.value || '';
 
+  console.log("in with auth")
+  console.log("session cookie: ", sessionCookie)
+
   if (!sessionCookie) {
     return {
       user: null,

@@ -71,7 +71,9 @@ const PromotionalBanner: React.FC<PromotionalBannerProps> = ({
 						{description}
 					</p>
 					
-					<ThemeButton/>
+					<ThemeButton
+            href='/MenuPage'
+          />
 
 				</div>
       </div>

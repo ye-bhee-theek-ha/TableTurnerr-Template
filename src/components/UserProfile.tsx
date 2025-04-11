@@ -259,7 +259,7 @@ const ProfileButton: React.FC<{
           className="object-cover h-[80%] w-[80%]"
         />
       </div>
-      <div className="hidden md:block text-left">
+      <div className="hidden lg:block text-left">
         <p className="text-normal3 font-medium text-gray-800 truncate max-w-[120px]">
           {profile?.displayName || "Guest"}
         </p>

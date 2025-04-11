@@ -34,6 +34,7 @@ export const checkAuthStatus = createAsyncThunk<User>(
   'auth/checkAuthStatus',
   async (_, { rejectWithValue }) => {
     try {
+      console.log("checking auth status...");
       const response = await apiClient.get('/auth/me');
       // Ensure phoneVerified is handled, default to false if missing
       const userData = response.data as User;
@@ -99,14 +100,24 @@ export interface RegisterPayload {
   displayName: string;
   phoneNumber: string; // Make sure phone number is included
 }
-export const registerUser = createAsyncThunk<void, RegisterPayload>(
+
+interface RegisterSuccessPayload { uid: string; customToken: string; message?: string; }
+
+
+export const registerUser = createAsyncThunk<RegisterSuccessPayload, RegisterPayload>(
   'auth/registerUserApi',
   async (registerData, { rejectWithValue }) => {
     try {
       // Call the backend registration endpoint
       // Assumes backend handles Firebase user creation AND Firestore profile creation
-      await apiClient.post('/auth/register', registerData);
-      // Registration successful, user needs to log in separately or backend could auto-login
+      const response = await apiClient.post('/auth/register', registerData);
+      
+      if (!response.data.customToken || !response.data.uid) {
+        throw new Error('Registration response missing custom token or UID.');
+      }
+
+      return response.data as RegisterSuccessPayload;
+
     } catch (error: any) {
       const message = error?.message || 'Registration failed';
       // Include potential error code from backend (e.g., 'auth/email-already-in-use')
@@ -145,32 +156,37 @@ export const verifyPhone = createAsyncThunk<void, VerifyPhonePayload>(
   async ({ verificationId, verificationCode }, { dispatch, rejectWithValue }) => {
     console.log("Verifying phone with ID:", verificationId, "and code:", verificationCode);
     const currentUser = auth.currentUser;
+
     if (!currentUser) {
       return rejectWithValue({ message: 'User must be logged in client-side to verify phone.' });
     }
 
+    let idToken: string | null = null;
+
+
     try {
       // 1. Create PhoneAuthCredential using the ID and code
       const credential = PhoneAuthProvider.credential(verificationId, verificationCode);
+      try {
+        idToken = await currentUser.getIdToken(true); // Force refresh
+        if (!idToken) throw new Error("Failed to retrieve ID token."); // Should not happen if currentUser exists
+      } catch(tokenError: any) {
+          console.error("Failed to get ID token:", tokenError);
+          clearRecaptchaVerifier(); // Clean up recaptcha
+          return rejectWithValue({ message: `Failed to get authentication token: ${tokenError.message}` });
+      }
 
-      // 2. Link the credential to the currently signed-in user (Client-side)
-      await linkWithCredential(currentUser, credential);
-      console.log("Phone credential linked successfully client-side.");
+      // // 2. Link the credential to the currently signed-in user (Client-side)
+      // await linkWithCredential(currentUser, credential);
+      // console.log("Phone credential linked successfully client-side.");
 
       // 3. Call the backend API to update Firestore/Auth (`phoneVerified: true`)
       try {
-        // This endpoint confirms the user owns the number and updates backend records
-        await apiClient.post('/api/auth/verify-phone'); // Ensure this endpoint exists and requires auth
+        await apiClient.post('/auth/verify-phone', { idToken });
         console.log("Backend notified of phone verification.");
 
         // --- AUTO-LOGIN STEP ---
         try {
-            // 4. Force refresh and get the latest ID token for the user
-            // This token now includes the verified phone number claim if set by triggers/backend.
-            console.log("Attempting to get fresh ID token for auto-login...");
-            const idToken = await currentUser.getIdToken(true); // Force refresh is crucial
-            console.log("Fresh ID token obtained.");
-
             // 5. Dispatch login action to create session cookie via backend
             // Ensure loginUserWithToken POSTs the idToken to '/api/auth/login'
             console.log("Dispatching login action for session cookie...");

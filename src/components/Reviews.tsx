@@ -73,6 +73,7 @@ const Reviews = () => {
             <ThemeButton
                 text='Give Us a Review'
                 textClassname="pr-[8px] pl-[14px]"
+                href='/'
             />
         </div>
 

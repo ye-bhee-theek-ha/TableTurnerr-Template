@@ -25,6 +25,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
   // State to handle component mount - prevents server-side rendering issues
   const [mounted, setMounted] = useState(false);
+  const [isVerificationPending, setIsVerificationPending] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -34,60 +35,57 @@ const AuthModal: React.FC<AuthModalProps> = ({
   const {
     // State pieces provided by the hook
     user,
-    isAuthenticated, // Use this to detect successful auth state change
-    loginLoading,    // Specific loading state for login
-    loginError,      // Specific error state for login
-    registrationLoading, // Specific loading state for registration (signup)
-    registrationError,   // Specific error state for registration
-    phoneVerificationLoading, // Specific loading state for phone verification
-    phoneVerificationError,   // Specific error state for phone verification
-    phoneVerificationId,      // Needed internally by useAuth's verifyCode
+    isAuthenticated, 
+    loginLoading,    
+    loginError,      
+    registrationLoading,
+    registrationError,   
+    phoneVerificationLoading, 
+    phoneVerificationError,   
+    phoneVerificationId,      
 
-    // Actions provided by the hook
-    loginWithToken, // Hook provides login with ID token
-    register,       // Hook provides 'register' instead of 'signup'
-    sendVerificationCode, // Hook provides 'sendVerificationCode'
-    verifyCode,           // Hook provides 'verifyCode'
-    clearError,           // Hook provides 'clearError'
-    // Removed properties not directly provided or mapped:
-    // loading, error, login, signup, clearAuthError, phoneVerified, sendVerification
+    loginWithToken, 
+    register,      
+    sendVerificationCode, 
+    verifyCode,           
+    clearError,           
   } = useAuth();
 
   // --- Effects ---
 
-  // Reset states and clear errors when modal is closed or opened
   useEffect(() => {
-    if (isOpen) {
-        // Reset mode to initial when opening, only if it's different
+  if (isOpen) {
         setMode(currentMode => currentMode !== initialMode ? initialMode : currentMode);
     } else {
-      // Delay reset on close to allow animation to finish
       const timer = setTimeout(() => {
         setMode(initialMode);
-        setPhoneNumber(''); // Clear phone number on close
-        clearError(); // Use the clearError from the hook
-      }, 300); // Match animation duration
-      return () => clearTimeout(timer); // Cleanup timer on unmount or if isOpen changes again
+        setPhoneNumber(''); 
+        clearError(); 
+      }, 300); 
+      return () => clearTimeout(timer); 
     }
-  }, [isOpen, initialMode, clearError]); // Include clearError in dependency array
+  }, [isOpen, initialMode, clearError]);
 
-  // Close modal on successful login or if authenticated state becomes true
-  // (handles login, or signup/verification completion)
+
   useEffect(() => {
-    if (isAuthenticated && isOpen) {
-       // Check isOpen to prevent closing if it was already closed manually
-       // or if auth state changed in the background
+
+    const shouldClose = isOpen && isAuthenticated && (!isVerificationPending);
+
+    if (shouldClose) {
+      console.log(`Closing modal: isOpen=${isOpen}, isAuthenticated=${isAuthenticated}, isVerificationPending=${isVerificationPending}`);
       onClose();
-    }
-    // Do NOT add mode here, otherwise switching modes while logged in would close it.
-    // Rely solely on isAuthenticated changing while the modal is open.
-  }, [isAuthenticated, onClose, isOpen]);
+  }
+
+  }, [isOpen, isAuthenticated, isVerificationPending, user, onClose]);
 
   // --- Mode Switching and Handlers ---
 
   const switchMode = (newMode: 'login' | 'signup') => {
+    console.log("Switching mode to:", newMode);
+    console.info("Switching Current mode:", mode, "newMode", newMode);
     setSlideDirection(newMode === 'signup' ? 'left' : 'right');
     setMode(newMode);
+    setIsVerificationPending(true);
     clearError(); // Clear errors when switching modes
   };
 
@@ -110,6 +108,16 @@ const AuthModal: React.FC<AuthModalProps> = ({
         console.error("Cannot resend code: phone number not available.");
     }
   }, [phoneNumber, sendVerificationCode, clearError]); // Add dependencies
+
+  const handleVerificationSuccess = useCallback(() => {
+    console.log("AuthModal: Phone verification successful.");
+    setIsVerificationPending(false); // <-- Reset the flag on success
+  }, []);
+
+  const handleLoginSuccess = useCallback(() => {
+    setIsVerificationPending(false); 
+  }, []);
+
 
   // --- Animation Variants ---
   const modalVariants = {
@@ -134,7 +142,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
   return (
     <div
       className="fixed h-full inset-0 z-50 flex items-center justify-center bg-black/25 backdrop-blur-md"
-      onClick={onClose} // Close modal when clicking outside
+      // TODO disable on close while processing
+      onClick={onClose}
     >
       <motion.div
         className="relative w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden"
@@ -171,11 +180,11 @@ const AuthModal: React.FC<AuthModalProps> = ({
             >
               <LoginForm
                 onSwitch={() => switchMode('signup')}
-                // Pass loginWithToken. LoginForm must get the idToken itself.
                 onLogin={loginWithToken}
                 loading={loginLoading} // Pass specific loading state
                 error={loginError}     // Pass specific error state
                 clearAuthError={clearError} // Pass hook's clearError function
+                onsuccess={handleLoginSuccess}
               />
             </motion.div>
           )}
@@ -193,6 +202,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
               <SignupForm
                 onSwitch={() => switchMode('login')}
                 onSignup={register} // Pass the register function from the hook
+                loginWithToken={loginWithToken} // Pass the login function from the hook
                 onPhoneVerification={handlePhoneVerification} // Keep this handler
                 loading={registrationLoading} // Pass specific loading state
                 error={registrationError}     // Pass specific error state
@@ -221,6 +231,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 error={phoneVerificationError}     // Pass specific error state
                 user={user} // Pass user if needed by the form
                 clearAuthError={clearError}        // Pass hook's clearError function
+                onSuccess={handleVerificationSuccess}
               />
             </motion.div>
           )}

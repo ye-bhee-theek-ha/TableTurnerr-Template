@@ -11,48 +11,23 @@ import PromotionalBanner from "@/components/Home_promotional_banner";
 import Reviews from "@/components/Reviews";
 import FAQSection from "@/components/FAQ_section";
 import LocationComponent from "@/components/OurLocation";
+import { useRef } from "react";
 
 
 export default function Home() {
 
-  // const locationData = {
-  //   title: "Beretania, Honolulu",
-  //   subtitle: "Seasons Taiwanese Eatery",
-   
-  //   mapQuery: "100 N Beretania St #109, Honolulu, HI 96817",
-    
-  //   contact: {
-  //     phone: "808-744-0272",
-  //     email: "contact@seasonseateryhi.com"
-  //   },
+  const menuSectionRef = useRef<HTMLDivElement>(null);
 
-  //   openingTime: "11:00 AM PDT",
-
-  //   actionLinkDirections: {
-  //     text: "Get Directions",
-  //     url: "https://maps.google.com/?q=Seasons Tiwanese Eatery, 100 N Beretania St #109, Honolulu, HI 96817"
-  //   },
-
-  //   actionLinkContact: {
-  //     text: "Contact",
-  //     url: "https://maps.google.com/?q=Seasons Tiwanese Eatery, 100 N Beretania St #109, Honolulu, HI 96817"
-  //   },
-
-  //   hours: [
-  //     { day: "Monday", hours: "10:30 AM - 3:00 PM" },
-  //     { day: "Tuesday", hours: "10:30 AM - 3:00 PM" },
-  //     { day: "Wednesday", hours: "10:30 AM - 3:00 PM" },
-  //     { day: "Thursday", hours: "10:30 AM - 3:00 PM" },
-  //     { day: "Friday", hours: "10:30 AM - 3:00 PM" },
-  //     { day: "Saturday", hours: "10:30 AM - 3:00 PM" },
-  //     { day: "Sunday", hours: "4:30 PM - 9:00 PM" }
-  //   ]
-  // };
-
+  const handleOrderNowClick = () => {
+    menuSectionRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start', 
+    });
+  };
 
   return (
     <div className="p-[10px]">
-      <Header />
+      <Header handleOrderNowClick={handleOrderNowClick}/>
 
       <div className="h-[40px]" />
 
@@ -87,7 +62,9 @@ export default function Home() {
 						</div>
           </div> */}
 
-          <ThemeButton />
+          <ThemeButton 
+            onClick={handleOrderNowClick}
+          />
 
           <Image
             src={placeholderImg}
@@ -109,6 +86,7 @@ export default function Home() {
         </div>
         <div className="mt-[20px]">
           <ThemeButton
+          href="/MenuPage"
             text="View Full Menu"
             textClassname="pr-[8px] pl-[14px]"
           />
@@ -119,7 +97,7 @@ export default function Home() {
 
       {/* Menu Section */}
 
-      <div>
+      <div ref={menuSectionRef} className="w-full flex items-center justify-center">
         <Home_menu_section />
       </div>
 
@@ -132,7 +110,7 @@ export default function Home() {
           title="Order From Our Website"
           description="Order directly from our website to save money in fees, get faster service, earn free food via our rewards program, and support local business."
           buttonText="Order Now"
-          buttonUrl="/order"
+          buttonUrl="/MenuPage"
         />
       </div>
 

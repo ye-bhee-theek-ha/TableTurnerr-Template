@@ -3,11 +3,14 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { RegisterPayload } from '@/lib/slices/authSlice';
+import { signInWithCustomToken } from 'firebase/auth';
+import { auth } from '@/lib/firebase/ClientApp';
 
 
 interface SignupFormProps {
   onSwitch: () => void;
   onSignup: (payload: RegisterPayload) => Promise<any>; // Return type might vary based on thunk
+  loginWithToken: (idToken: string) => Promise<any>;
   onPhoneVerification: (phone: string) => void; // Keep this handler for switching view
   loading: "idle" | "pending" | "succeeded" | "failed"
   error: string | null; // Corresponds to registrationError from useAuth
@@ -17,6 +20,7 @@ interface SignupFormProps {
 const SignupForm: React.FC<SignupFormProps> = ({
   onSwitch,
   onSignup,
+  loginWithToken,
   onPhoneVerification,
   loading,
   error,
@@ -34,7 +38,8 @@ const SignupForm: React.FC<SignupFormProps> = ({
     email: '',
     password: '',
     confirmPassword: '',
-    phoneNumber: ''
+    phoneNumber: '',
+    general: '',
   });
 
   const validateSignupForm = () => {
@@ -44,6 +49,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
       password: '',
       confirmPassword: '',
       phoneNumber: '',
+      general: ''
     };
     
     // Email validation
@@ -89,13 +95,47 @@ const SignupForm: React.FC<SignupFormProps> = ({
       };
 
       try {
+        console.log("Attempting registration...");
+        const registerResult = await onSignup(payload);
 
-        const resultAction = await onSignup(payload);
+        if (registerResult?.customToken && registerResult?.uid) {
+          console.log("Registration successful, received custom token.");
+          console.log("Attempting client-side sign-in with custom token...");
+          await signInWithCustomToken(auth, registerResult.customToken);
+          console.log("Client-side sign-in successful.");
 
-        onPhoneVerification(signupData.phoneNumber); // Trigger phone verification UI switch
+          // --- CRUCIAL STEP: Establish Session Cookie ---
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            console.log("Getting ID token to establish session...");
+            // Force refresh recommended after custom token sign-in
+            const idToken = await currentUser.getIdToken(true);
+            console.log("ID token retrieved, calling loginWithToken action...");
 
-      } catch (err) {
-        console.error("Signup failed:", err);
+            await loginWithToken(idToken);
+            console.log("Session login attempted successfully via loginWithToken.");
+
+            console.log("Proceeding to phone verification step.");
+            onPhoneVerification(signupData.phoneNumber); // Trigger the next step in UI
+
+          } else {
+             console.error("signInWithCustomToken succeeded but auth.currentUser is null.");
+             // Handle this unexpected state - maybe show an error?
+             setFormErrors({...formErrors, general: "Sign-in failed unexpectedly after registration." });
+          }
+          // --- End Session Cookie Step ---
+
+        } else {
+          console.error("Registration call succeeded but custom token/UID missing in result.");
+          // The error state from the hook should ideally cover this via thunk rejection
+           setFormErrors({ ...formErrors, general: "Registration failed: Missing token. Please try again." });
+        }
+
+      } catch (err: any) {
+        console.error("Signup or subsequent login failed:", err);
+        // Error should be set by the useAuth hook via thunk rejection
+        // You might set a local error based on err if needed:
+        // setFormErrors({ general: err.message || "An unexpected error occurred during signup." });
       }
     }
   };

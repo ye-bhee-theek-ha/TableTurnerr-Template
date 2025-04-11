@@ -49,7 +49,7 @@ export const useAuth = () => {
   }, [dispatch]);
 
   const loginWithToken = useCallback((idToken: string) => {
-    return dispatch(loginUserWithToken(idToken));
+    return dispatch(loginUserWithToken(idToken)).unwrap();
   }, [dispatch]);
 
   const logout = useCallback(() => {
@@ -99,16 +99,23 @@ export const useAuth = () => {
 
   // --- Updated verifyCode ---
   // This function now directly expects the payload required by the verifyPhone thunk
-  const verifyCode = useCallback((payload: VerifyPhonePayload) => {
-
+  const verifyCode = useCallback(async (payload: VerifyPhonePayload) => {
     if (!payload.verificationId) {
          console.error("Cannot verify code: verificationId is missing in payload.");
-         return Promise.reject(new Error("Verification ID is missing in payload"));
+         throw new Error("Verification ID is missing in payload");
     }
-    return dispatch(verifyPhone(payload));
-    // Consider unwrapping if the component needs direct success/failure feedback beyond state updates
-    // Example: return dispatch(verifyPhone(payload)).unwrap();
+
+    const dispatchedActionPromise = dispatch(verifyPhone(payload));
+
+    try {
+        await dispatchedActionPromise.unwrap();
+        console.log("Verification thunk fulfilled successfully via unwrap.");
+    } catch (rejectedValueOrError) {
+        console.error("Verification thunk rejected:", rejectedValueOrError);
+        throw rejectedValueOrError; // Re-throw the error/rejection payload
+    }
   }, [dispatch]);
+
 
   const clearError = useCallback(() => {
     dispatch(clearAuthError());

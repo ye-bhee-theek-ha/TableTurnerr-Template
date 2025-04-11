@@ -48,8 +48,10 @@
         };
         await adminDb.collection('users').doc(userRecord.uid).set(userProfile);
 
+        const customToken = await adminAuth.createCustomToken(userRecord.uid);
+
         return NextResponse.json(
-          { message: 'User registered successfully', uid: userRecord.uid },
+          { message: 'User registered successfully', uid: userRecord.uid, customToken },
           { status: 201 } // 201 Created
         );
 

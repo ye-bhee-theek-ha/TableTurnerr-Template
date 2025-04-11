@@ -11,6 +11,7 @@ interface LoginFormProps {
   loading: "idle" | "pending" | "succeeded" | "failed";
   error: string | null;
   clearAuthError: () => void;
+  onsuccess: () => void;
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({
@@ -18,7 +19,9 @@ const LoginForm: React.FC<LoginFormProps> = ({
   onLogin,
   loading,
   error,
-  clearAuthError
+  clearAuthError,
+  onsuccess
+  
 }) => {
   const [loginData, setLoginData] = useState({
     email: '',
@@ -52,6 +55,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
         const idToken = await user.getIdToken();
 
         await onLogin(idToken);
+        onsuccess(); // Call the success callback after login
 
       } else {
          console.error("Login succeeded but user object is null.");

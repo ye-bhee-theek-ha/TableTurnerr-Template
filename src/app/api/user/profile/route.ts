@@ -11,10 +11,11 @@ import { withAuth } from '@/utils/withAuth'; // Adjust path if needed
 const profileUpdateSchema = z.object({
   displayName: z.string().min(1, 'Display name cannot be empty').optional(), // Make optional for PUT if not always required
   phoneNumber: z.string().optional(), // Add specific phone validation if needed
-  photoURL: z.string().url('Invalid URL format').nullable().optional(),
-  // email: z.string().email('Invalid email format').optional(), // Usually email is not updated here
-  // loyaltyPoints: z.number().optional(), // Should not be updatable by user
-  // role: z.enum(['customer', 'employee', 'admin']).optional(), // Should not be updatable by user
+  photoURL: z.union([
+    z.string().url('Invalid URL format'), // Valid URL
+    z.literal(''), // Empty string
+    z.null() // Null
+  ]).optional()
 });
 
 // --- GET Handler Logic ---
@@ -63,9 +64,10 @@ const handleUpdateUserProfile = async (req: NextRequest, user: DecodedIdToken) =
 
     // Validate incoming data
     const validationResult = profileUpdateSchema.safeParse(body);
+    
     if (!validationResult.success) {
       return NextResponse.json(
-        { message: 'Invalid data', errors: validationResult.error.errors },
+        { message: 'Invalid data', errors: validationResult.error.errors, body: body },
         { status: 400 }
       );
     }

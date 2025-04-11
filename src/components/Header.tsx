@@ -6,8 +6,13 @@ import { AnimatedCTAButton_LoggedIn, AnimatedCTAButton_LoggedOut } from './CTA_h
 import useAuth from '../hooks/useAuth';
 import AuthModal from './Auth/AuthForm';
 
+interface HeaderProps {
+  handleOrderNowClick: () => void;
+}
 
-function Header() {
+function Header(
+  { handleOrderNowClick }: HeaderProps
+) {
 
   const { isAuthenticated, authLoading } = useAuth();
 
@@ -23,7 +28,7 @@ function Header() {
   return (
     <div className="p-[20px] w-full">
       
-      <div className="w-full grid grid-cols-3 items-center">
+      <div className="w-full grid grid-cols-2 md:grid-cols-3 items-center">
       
         {/* Left Section */}
         <div className="flex justify-start">
@@ -38,19 +43,19 @@ function Header() {
         </div>
 
         {/* Center Section (Always Centered) */}
-        <div className="flex justify-center">
+        <div className="justify-center hidden md:flex">
           <div className="h-[50px] w-[50px] bg-grey text-white">
               {isAuthenticated ? "User Avatar" : "Logo"}
           </div>
         </div>
 
         {/* Right Section */}
-        <div className="flex justify-end">
+        <div className="flex justify-end flex-row">
           {  
             isAuthenticated ? 
-              <AnimatedCTAButton_LoggedIn cart_alerts={3}/>
+              <AnimatedCTAButton_LoggedIn cart_alerts={3} handelOrderNowClick={handleOrderNowClick}/>
                : 
-              <AnimatedCTAButton_LoggedOut onSignInClick={handleSignInClick} />
+              <AnimatedCTAButton_LoggedOut onSignInClick={handleSignInClick} handelOrderNowClick={handleOrderNowClick}/>
           }
           {isAuthModalOpen && <AuthModal 
             isOpen={isAuthModalOpen}

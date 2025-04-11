@@ -46,11 +46,12 @@ export const fetchUserAddresses = createAsyncThunk<Address[]>(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiClient.get('/user/addresses');
-      if (!Array.isArray(response.data)) {
-        console.error('API Error: /user/addresses did not return an array.', response.data);
-        throw new Error('Invalid address data received'); 
-      }
-      return response.data as Address[];
+      if (response.data && Array.isArray(response.data.data)) {
+        return response.data.data as Address[];
+     } else {
+        console.error('API Error: /user/addresses did not return expected structure.', response.data);
+        throw new Error('Invalid address data received');
+     }
     } catch (error: any) {
       const message = error.response?.data?.message || error.message || 'Failed to fetch addresses';
       console.error('fetchUserAddresses Error:', message, error.response?.data);

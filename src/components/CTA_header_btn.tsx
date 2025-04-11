@@ -8,9 +8,10 @@ import cart from '@/../public/Svgs/Cart icon.svg'
 import UserProfile from './UserProfile';
 interface AnimatedCTAButtonProps {
   onSignInClick: () => void;
+  handelOrderNowClick?: () => void;
 }
 
-export const AnimatedCTAButton_LoggedOut:React.FC<AnimatedCTAButtonProps> = ({ onSignInClick }) => {
+export const AnimatedCTAButton_LoggedOut:React.FC<AnimatedCTAButtonProps> = ({ onSignInClick, handelOrderNowClick }) => {
   const [hoveredButton, setHoveredButton] = useState<'left' | 'right' | null>(null);
   
   return (
@@ -77,6 +78,8 @@ export const AnimatedCTAButton_LoggedOut:React.FC<AnimatedCTAButtonProps> = ({ o
 							}}
 							initial={{ width: "50%", right: "0%" }}
 							transition={{ duration: 0.3, ease: "easeInOut" }}
+
+              onClick={handelOrderNowClick}
 						>
 							Order Now
 						</motion.div>
@@ -94,23 +97,28 @@ export const AnimatedCTAButton_LoggedOut:React.FC<AnimatedCTAButtonProps> = ({ o
   );
 };
 
-export const AnimatedCTAButton_LoggedIn = ({cart_alerts}: {cart_alerts: number }) => {
+export const AnimatedCTAButton_LoggedIn = ({cart_alerts, handelOrderNowClick}: {cart_alerts: number , handelOrderNowClick?:() => void}) => {
   
   return (
-    <div className="flex justify-center items-center w-[271px] h-[41px]">
-      <div className="relative w-full max-w-lg h-full flex flex-row">
+    <div className="flex justify-center items-center w-[471px] h-[41px]">
+      <div className="relative w-full h-full flex flex-row">
 
         {/* Left Buttons */}
-        <div>
-          <div className='h-full flex justify-center relative'>
+        <div className='flex flex-row items-center right-[50px] sm:right-[169px]'
+          style={{
+            position: "absolute",
+          }}
+        >
+          <div className='h-full w-fit flex relative'>
             <Image
               src={cart}
               alt='cart icon'
               width={31}
               height={31}
+              className='min-w-[31px]'
             />
             {cart_alerts > 0 && (
-              <div className='bg-black rounded-full h-[18px] w-[18px] absolute top-[18px] right-[48px] border-2 border-white'>
+              <div className='bg-black rounded-full h-[18px] w-[18px] absolute top-[13px] -right-[7px] border-2 border-white'>
                 <div className='text-white justify-center flex text-[10px] font-bold z-20'>
                   {cart_alerts}
                 </div>
@@ -118,18 +126,21 @@ export const AnimatedCTAButton_LoggedIn = ({cart_alerts}: {cart_alerts: number }
             )}
           </div>
 
-          <div>
+          <div className='h-full flex flex-1 ml-4'>
             <UserProfile />
           </div>
         </div>
 
         {/* Right Button */}
         <div
-          className="absolute h-full rounded-lg overflow-hidden flex items-center bg-primary"
-          style={{ width: "55%", right: "0%" }}
+          className="absolute h-full rounded-lg overflow-hidden flex items-center bg-primary w-fit sm:w-[157px]"
+          style={{ right: "0%" }}
         >
           <div className="flex items-center justify-between w-full ">
-            <div className='overflow-hidden text-nowrap text-normal2 font-bold text-white flex-1 text-center'>
+            <div 
+              className='overflow-hidden text-nowrap text-normal2 font-bold text-white flex-1 text-center hidden sm:block'
+              onClick={handelOrderNowClick}
+            >
 							Order Now
             </div>
 						<div className='flex justify-end m-[5px]'>

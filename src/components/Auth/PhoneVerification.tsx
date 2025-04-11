@@ -13,6 +13,7 @@ interface PhoneVerificationFormProps {
   error: string | null; 
   user: any; 
   clearAuthError: () => void;
+  onSuccess: () => void; 
 }
 
 const PhoneVerificationForm: React.FC<PhoneVerificationFormProps> = ({
@@ -22,6 +23,7 @@ const PhoneVerificationForm: React.FC<PhoneVerificationFormProps> = ({
   onResendCode,
   loading,
   error,
+  onSuccess,
   user,
   clearAuthError
 }) => {
@@ -35,6 +37,7 @@ const PhoneVerificationForm: React.FC<PhoneVerificationFormProps> = ({
 
   const initialSendAttempted = useRef(false);
 
+  console.log("PhoneVerificationForm mounted with phoneNumber:", phoneNumber);
 
   useEffect(() => {
     if (!initialSendAttempted.current && phoneNumber) {
@@ -111,6 +114,7 @@ const PhoneVerificationForm: React.FC<PhoneVerificationFormProps> = ({
             // The Redux state (user.phoneVerified) should be updated by the thunk.
             setVerificationSuccess(true);
             clearRecaptchaVerifier(); // Clean up reCAPTCHA on success
+            onSuccess()
 
         } catch (err: any) {
             // Errors are handled by Redux state (`error` prop) if using .unwrap() in hook,
