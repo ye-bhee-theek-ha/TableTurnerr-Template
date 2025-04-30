@@ -3,18 +3,21 @@
 "use client";
 
 import MenuCards from '@/components/MenuPage_menu_cards';
-import { MenuItem } from '@/constants/types';
-import { selectCategories, selectMenuItems } from '@/lib/slices/restaurantSlice';
-import { RootState } from '@/lib/store/store';
+import { CartItemOptions, MenuItem } from '@/constants/types';
+import { selectAllMenuItems, selectCategories  } from '@/lib/slices/restaurantSlice';
+import { AppDispatch, RootState } from '@/lib/store/store';
 import { group } from 'console';
 import React, { useRef, useCallback, useEffect, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import ProductBox from './MenuPage_product_box';
+import { addItem } from '@/lib/slices/cartSlice';
 
 function MenuPage_Menu_Section() {
-  const menuItems = useSelector(selectMenuItems);
+  const menuItems = useSelector(selectAllMenuItems);
   const categories = useSelector(selectCategories);
   const isLoading = useSelector((state: RootState) => state.restaurant.loading);
+
+  const dispatch = useDispatch<AppDispatch>();
 
   const [activeCategory, setActiveCategory] = React.useState('');
 
@@ -78,17 +81,12 @@ function MenuPage_Menu_Section() {
     return grouped;
   }, [menuItems, categories]);
 
-  console.log(itemsByCategory);
-
-   // Get recommended items for a specific menu item
    const getRecommendedItems = (itemId: string) => {
     // This is a simple recommendation logic - you should replace with your actual recommendation system
-    // For example, return 2-3 random items from other categories
     const allOtherItems = menuItems?.filter(item => item.id !== itemId) || [];
     return allOtherItems.slice(0, 3); // Just get first 3 other items as recommendations
   };
 
-  // Handler for Add to Cart button
   const handleOnReadMore = (id: string) => {
     const item = menuItems?.find(item => item.id === id);
     if (item) {
@@ -97,7 +95,12 @@ function MenuPage_Menu_Section() {
     }
   };
 
-  // Handle modal close
+  const handleAddToCart = (item: MenuItem, quantity: number = 1, options: CartItemOptions = {}) => {
+    console.log(`Adding item ${item.id} to cart with options:`, options);
+    dispatch(addItem({ item, quantity, options }));
+    handleCloseModal();
+  };
+
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedItem(null);
@@ -180,7 +183,7 @@ function MenuPage_Menu_Section() {
                       title={category.name}
                       items={itemsByCategory[category.name]}
                       onReadMore={(id) => {handleOnReadMore(id)}}
-                      onAddToCart={(id) => console.log(`Added item ${id} to cart`)}
+                      onAddToCart={(item, quantity, options) => handleAddToCart(item, quantity, options)}
                       onToggleFavorite={(id) => console.log(`Toggled favorite for item ${id}`)}
                     />
                 </div>
@@ -199,6 +202,14 @@ function MenuPage_Menu_Section() {
             <ProductBox 
               item={selectedItem} 
               recommendedItems={getRecommendedItems(selectedItem.id)} 
+              onAddToCart={(item, quantity, options) => {
+                console.log(`Adding item ${item.id} to cart with options:`, options);
+                console.log(`Adding item ${item.id} to cart with quantity:`, quantity);
+                console.log(`Adding item ${item.id} to cart with item:`, item);
+                handleAddToCart(item, quantity, options);
+                handleCloseModal();
+              }}
+
             />
           </div>
         </div>

@@ -5,11 +5,6 @@ import { DecodedIdToken } from 'firebase-admin/auth';
 import { z } from 'zod';
 import { withAuth } from '@/utils/withAuth';
 
-// NOTE: Storing addresses in an array within the user document works for a few addresses.
-// For many addresses per user, consider using a subcollection:
-// e.g., adminDb.collection('users').doc(userId).collection('addresses')
-// This requires changing the logic below significantly (querying collections, adding/updating/deleting docs).
-
 // Define Address type (matching Firestore structure)
 interface Address {
     id: string;
@@ -35,7 +30,7 @@ const updateAddressSchema = z.object({
   
 
 // --- GET Handler Logic ---
-const handleGetAddresses = async (req: NextRequest, user: DecodedIdToken) => {
+const handleGetAddresses = async (req: NextRequest, context: { params: Record<string, string | string[]> }, user: DecodedIdToken) => {
     const userId = user.uid;
     const userRef = adminDb.collection('users').doc(userId);
 
@@ -60,7 +55,7 @@ const handleGetAddresses = async (req: NextRequest, user: DecodedIdToken) => {
 };
 
 // --- POST Handler ---
-const handlePostAddress = async (req: NextRequest, user: DecodedIdToken) => {
+const handlePostAddress = async (req: NextRequest, context: { params: Record<string, string | string[]> }, user: DecodedIdToken) => {
     const userId = user.uid;
     const userRef = adminDb.collection('users').doc(userId);
     try {
@@ -99,7 +94,7 @@ const handlePostAddress = async (req: NextRequest, user: DecodedIdToken) => {
 };
 
 // --- PUT Handler (Highlight: Added This Entire Handler) ---
-const handlePutAddress = async (req: NextRequest, user: DecodedIdToken) => {
+const handlePutAddress = async (req: NextRequest, context: { params: Record<string, string | string[]> }, user: DecodedIdToken) => {
     const userId = user.uid;
     const userRef = adminDb.collection('users').doc(userId);
 
@@ -174,7 +169,7 @@ const handlePutAddress = async (req: NextRequest, user: DecodedIdToken) => {
 
 
 // --- DELETE Handler (Highlight: Added This Entire Handler) ---
-const handleDeleteAddress = async (req: NextRequest, user: DecodedIdToken) => {
+const handleDeleteAddress = async (req: NextRequest, context: { params: Record<string, string | string[]> }, user: DecodedIdToken) => {
     const userId = user.uid;
     const userRef = adminDb.collection('users').doc(userId);
 
@@ -218,7 +213,5 @@ const handleDeleteAddress = async (req: NextRequest, user: DecodedIdToken) => {
 // --- Export protected handlers ---
 export const GET = withAuth(handleGetAddresses);
 export const POST = withAuth(handlePostAddress);
-// Highlight: Export new PUT handler
 export const PUT = withAuth(handlePutAddress);
-// Highlight: Export new DELETE handler
 export const DELETE = withAuth(handleDeleteAddress);

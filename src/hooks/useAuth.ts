@@ -10,24 +10,19 @@ import {
   sendPhoneVerification,
   verifyPhone,
   clearAuthError,
-  // Import specific types if needed, e.g., RegisterPayload, VerifyPhonePayload
   type RegisterPayload,
   type VerifyPhonePayload,
 } from '@/lib/slices/authSlice';
 
-/**
- * Custom hook for accessing authentication state and dispatching auth actions.
- * Provides a centralized and optimized way to interact with the auth system.
- */
+
 export const useAuth = () => {
   const dispatch = useDispatch<AppDispatch>();
 
-  // Selectors for relevant auth state pieces
   const {
     isAuthenticated,
     user,
-    loading: authLoading, // Renamed to avoid conflict if components use 'loading'
-    error: authError,     // Renamed for clarity
+    loading: authLoading,
+    error: authError,  
     phoneVerificationId,
     phoneVerificationLoading,
     phoneVerificationError,
@@ -37,14 +32,11 @@ export const useAuth = () => {
     loginError,
     logoutLoading,
     logoutError,
-  } = useSelector((state: RootState) => state.auth); // Assuming 'auth' is the slice name in your root reducer
+  } = useSelector((state: RootState) => state.auth);
 
   // --- Action Dispatchers ---
-  // Use useCallback to memoize dispatcher functions, preventing unnecessary re-renders
-  // in components that consume this hook, especially if passed as props.
 
   const checkStatus = useCallback(() => {
-    // Returns the promise for potential chaining or await in components
     return dispatch(checkAuthStatus());
   }, [dispatch]);
 

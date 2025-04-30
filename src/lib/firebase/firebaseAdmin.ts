@@ -15,8 +15,6 @@ if (!getApps().length) {
     try {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
-        // Optional: Add databaseURL if using Realtime Database
-        // databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL
       });
       console.log('Firebase Admin SDK Initialized.');
     } catch (error) {

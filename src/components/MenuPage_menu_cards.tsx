@@ -1,14 +1,14 @@
 import React from 'react';
 import Image from 'next/image';
 import placeholderImg from "@/../public/Images/menu.png";
-import { MenuItem } from '@/constants/types';
+import { CartItemOptions, MenuItem } from '@/constants/types';
 
 // Define types
 
 interface MenuCardsProps {
   title: string;
   items: MenuItem[];
-  onAddToCart: (itemId: string) => void;
+  onAddToCart: (item: MenuItem, quantity: number, options: CartItemOptions) => void;
   onToggleFavorite: (itemId: string) => void;
   onReadMore: (itemId: string) => void;
 }
@@ -103,7 +103,7 @@ const MenuCards: React.FC<MenuCardsProps> = ({
                   </button>
 
                   <button 
-                    onClick={() => onAddToCart(item.id)}
+                    onClick={() => onAddToCart(item, 1, {})}
                     className="text-normal3 text-white/80 bg-primary hover:bg-primary/90 py-[6px] px-[5px] rounded-tl-[0px] rounded-[14px] w-[calc(50%-2.5px)] "
                   >
                     Add To Cart
