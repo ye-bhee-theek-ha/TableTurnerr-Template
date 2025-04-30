@@ -6,6 +6,11 @@ import Image from 'next/image';
 
 import cart from '@/../public/Svgs/Cart icon.svg'
 import UserProfile from './UserProfile';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch } from '@/lib/store/store';
+import { selectCartTotalItemCount, selectIsCartOpen, toggleCart } from '@/lib/slices/cartSlice';
+import CartModal from './CartModal';
+import ConfirmDetailsModal from './ConfirmDetailsModal';
 interface AnimatedCTAButtonProps {
   onSignInClick: () => void;
   handelOrderNowClick?: () => void;
@@ -97,8 +102,19 @@ export const AnimatedCTAButton_LoggedOut:React.FC<AnimatedCTAButtonProps> = ({ o
   );
 };
 
-export const AnimatedCTAButton_LoggedIn = ({cart_alerts, handelOrderNowClick}: {cart_alerts: number , handelOrderNowClick?:() => void}) => {
-  
+export const AnimatedCTAButton_LoggedIn = ({handelOrderNowClick, OnLoginRequired}: {handelOrderNowClick?:() => void, OnLoginRequired?: () => void}) => {
+
+  const dispatch = useDispatch<AppDispatch>();
+  const cart_alerts = useSelector(selectCartTotalItemCount);
+  const isCartOpen = useSelector(selectIsCartOpen);
+
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+
+  const handleCartClick = () => {
+    dispatch(toggleCart());
+  };
+
+
   return (
     <div className="flex justify-center items-center w-[471px] h-[41px]">
       <div className="relative w-full h-full flex flex-row">
@@ -110,13 +126,16 @@ export const AnimatedCTAButton_LoggedIn = ({cart_alerts, handelOrderNowClick}: {
           }}
         >
           <div className='h-full w-fit flex relative'>
-            <Image
-              src={cart}
-              alt='cart icon'
-              width={31}
-              height={31}
-              className='min-w-[31px]'
-            />
+            <button onClick={handleCartClick}>
+              <Image
+                src={cart}
+                alt='cart icon'
+                width={31}
+                height={31}
+                className='min-w-[31px]'
+              />
+            </button>
+           
             {cart_alerts > 0 && (
               <div className='bg-black rounded-full h-[18px] w-[18px] absolute top-[13px] -right-[7px] border-2 border-white'>
                 <div className='text-white justify-center flex text-[10px] font-bold z-20'>
@@ -124,6 +143,19 @@ export const AnimatedCTAButton_LoggedIn = ({cart_alerts, handelOrderNowClick}: {
                 </div>
               </div>
             )}
+
+            {isCartOpen &&
+              <CartModal 
+                OnLoginRequired={OnLoginRequired} 
+                onProceedToConfirmation={() => setIsConfirmModalOpen(true)} 
+              />
+            }
+
+            <ConfirmDetailsModal 
+              isOpen={isConfirmModalOpen}
+              onClose={() => setIsConfirmModalOpen(false)}
+            />
+          
           </div>
 
           <div className='h-full flex flex-1 ml-4'>

@@ -2,12 +2,12 @@ import React from 'react';
 import Image from 'next/image';
 
 import placeholderImg from "@/../public/Images/menu.png";
-import { MenuItem } from '@/constants/types';
+import { CartItemOptions, MenuItem } from '@/constants/types';
 
 // Define types
 interface ScrollableMenuCardsProps {
   items: MenuItem[];
-  onAddToCart: (itemId: string) => void;
+  onAddToCart : (item: MenuItem, quantity: number, options: CartItemOptions) => void
   onToggleFavorite: (itemId: string) => void;
   onReadMore: (itemId: string) => void;
 }
@@ -18,19 +18,13 @@ const ScrollableMenuCards: React.FC<ScrollableMenuCardsProps> = ({
   onToggleFavorite,
   onReadMore
 }) => {
+
+
+  console.log(items, "items in scrollable menu cards")
+
   return (
     <div className="w-full bg-primary-dark text-white px-6 pt-3 pb-0">
-      {/* Header Section
-      <div className="mb-6">
-        <h2 className="text-heading-4 font-bold">{title}</h2>
-        {subtitle && <p className="text-normal-2 mt-1 opacity-80">{subtitle}</p>}
-        <div className="flex items-center mt-4">
-          <p className="text-normal-3">Scroll through to explore our dishes.</p>
-          <svg className="ml-2 w-6 h-6" viewBox="0 0 24 24" fill="none">
-            <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-      </div> */}
+
 
       {/* Scrollable Cards Section */}
       <div className="flex overflow-x-auto gap-4 scrollbar-hide">
@@ -100,7 +94,7 @@ const ScrollableMenuCards: React.FC<ScrollableMenuCardsProps> = ({
                 </button>
 
                 <button 
-                  onClick={() => onAddToCart(item.id)}
+                  onClick={() => onAddToCart(item, 1, {})}
                   className="text-normal3 font-bold text-white text-center bg-primary h-[31px] rounded-full"
                 >
                   Add To Cart

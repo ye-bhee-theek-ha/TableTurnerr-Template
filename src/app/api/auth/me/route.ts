@@ -1,10 +1,11 @@
 // app/api/auth/me/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/firebaseAdmin';
-import { withAuth } from '@/utils/withAuth';
+import { withAuth, withLoginRequired } from '@/utils/withAuth';
 
 async function meHandler(
   req: NextRequest,
+  context: { params: Record<string, string | string[]> },
   user: import('firebase-admin/auth').DecodedIdToken
 ): Promise<NextResponse<{ message: string } | { uid: string; email: string | undefined; displayName: string; role: string; loyaltyPoints: number; photoURL: string | null, phoneNumber: string | null }>> {
   try {
@@ -38,4 +39,4 @@ async function meHandler(
 }
 
 // Export the handler wrapped with authentication
-export const GET = withAuth(meHandler);
+export const GET = withLoginRequired(meHandler);

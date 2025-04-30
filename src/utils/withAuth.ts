@@ -1,6 +1,6 @@
 // middleware/withAuth.ts
 import { NextResponse, NextRequest } from 'next/server';
-import { adminAuth } from '@/lib/firebase/firebaseAdmin';
+import { adminAuth, adminDb } from '@/lib/firebase/firebaseAdmin';
 import { DecodedIdToken } from 'firebase-admin/auth';
 
 export interface AuthResult {
@@ -9,21 +9,36 @@ export interface AuthResult {
   status?: number;
 }
 
+type AppRouteHandlerFn<T = any> = (
+  req: NextRequest,
+  context: { params: Record<string, string | string[]> },
+  user: DecodedIdToken
+) => Promise<NextResponse<T>>;
+
+const ROLES = {
+  CUSTOMER: 'customer',
+  STAFF: 'staff',
+  ADMIN: 'admin',
+} as const;
+
+type Role = typeof ROLES[keyof typeof ROLES];
+
 /**
  * Authentication middleware for App Router routes
  * Verifies the session cookie and returns user info or error
  * @param request NextRequest object
- * @param requiredRole Optional role required to access the route
+ * @param restaurantId Optional role required to access the route
+ * @param requiredRoles The ID of the restaurant to check role against
+ * @returns AuthResult containing user, error, or status
  */
 export async function verifyAuth(
   request: NextRequest,
-  requiredRole?: string | string[]
+  restaurantId?: string | undefined,  
+  requiredRoles?: string | string[],
 ): Promise<AuthResult> {
+  
   // Get session cookie from request cookies
   const sessionCookie = request.cookies.get('session')?.value || '';
-
-  console.log("in with auth")
-  console.log("session cookie: ", sessionCookie)
 
   if (!sessionCookie) {
     return {
@@ -34,32 +49,45 @@ export async function verifyAuth(
   }
 
   try {
-    // Verify the session cookie
     const decodedToken = await adminAuth.verifySessionCookie(
       sessionCookie,
-      true // Check for revocation
+      true 
     );
 
-    // Check for required role if specified
-    if (requiredRole) {
-      const userRole = decodedToken.role || 'customer'; // Assuming role is a custom claim
-      const rolesToCheck = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-      
-      if (!rolesToCheck.includes(userRole)) {
-        console.warn(`Role check failed: User ${decodedToken.uid} (${userRole}) tried to access route requiring ${rolesToCheck.join('/')}`);
-        return {
-          user: null,
-          error: 'Forbidden: Insufficient permissions',
-          status: 403
-        };
+    const userId = decodedToken.uid;
+
+    if (requiredRoles && requiredRoles.length > 0) {
+      const userId = decodedToken.uid;
+
+      if (!restaurantId) {
+        console.error(`Role check required (${requiredRoles}) but no restaurantId provided for request: ${request.url}`);
+        return { user: null, error: "Internal Server Error: Restaurant context missing for role check.", status: 500 };
       }
+
+      const staffRef = adminDb.doc(`Restaurants/${restaurantId}/users/${userId}`);
+      const staffSnap = await staffRef.get();
+      const rolesToCheck = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
+      
+      if (!staffSnap.exists) {
+        return { user: null, error: 'Forbidden: User not associated with this restaurant.', status: 403 };
     }
 
-    // Authentication successful
-    return {
-      user: decodedToken,
-      status: 200
-    };
+      const userRole = staffSnap.data()?.role as Role;
+
+      if (!userRole || !rolesToCheck.includes(userRole)) {
+        return {
+            user: null,
+            error: `Forbidden: Requires one of roles [${rolesToCheck.join(', ')}]. User has role '${userRole || 'none'}'.`,
+            status: 403
+        };
+    }
+    }
+
+  // Authentication successful
+  return {
+    user: decodedToken,
+    status: 200
+  };
 
   } catch (error: any) {
     console.error('Error verifying session cookie:', error);
@@ -81,7 +109,7 @@ export async function verifyAuth(
     
     return {
       user: null,
-      error: 'Unauthorized: Invalid session cookie',
+      error: 'dead end: with auth middleware failed',
       status: 401
     };
   }
@@ -93,11 +121,16 @@ export async function verifyAuth(
  * @param requiredRole Optional role required to access the route
  */
 export function withAuth<T>(
-  handler: (req: NextRequest, user: DecodedIdToken) => Promise<NextResponse<T>>,
-  requiredRole?: string | string[]
+  handler: (req: NextRequest, context: { params: Record<string, string | string[]> }, user: DecodedIdToken) => Promise<NextResponse<T>>,
+  requiredRoles?: string | string[]
 ) {
-  return async (request: NextRequest) => {
-    const authResult = await verifyAuth(request, requiredRole);
+  return async (request: NextRequest, context: { params: Record<string, string | string[]>} ) => {
+
+    const restaurantId = context.params?.restaurantId as string | undefined;
+    const rolesToCheck = requiredRoles ? (Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles]) : [];
+
+
+    const authResult = await verifyAuth(request, restaurantId ,rolesToCheck);
     
     if (!authResult.user) {
       return NextResponse.json(
@@ -107,7 +140,15 @@ export function withAuth<T>(
     }
     
     // Call the handler with the authenticated user
-    return handler(request, authResult.user);
+    try {
+      return await handler(request, context, authResult.user);
+  } catch (error: any) {
+      console.error(`Error in protected route handler (${request.method} ${request.nextUrl.pathname}):`, error);
+      return NextResponse.json(
+          { message: "Internal Server Error", error: error.message || 'An unexpected error occurred.' },
+          { status: 500 }
+      );
+  };
   };
 }
 
@@ -115,7 +156,27 @@ export function withAuth<T>(
  * Helper specifically for admin-only routes
  */
 export function withAdminAuth<T>(
-  handler: (req: NextRequest, user: DecodedIdToken) => Promise<NextResponse<T>>
+  handler: AppRouteHandlerFn<T>
 ) {
-  return withAuth(handler, 'admin');
+  return withAuth(handler, ROLES.ADMIN);
 }
+
+/**
+ * Helper specifically for staff-only routes
+ */
+export function withStaffAuth<T>(
+  handler: AppRouteHandlerFn<T>
+) {
+  return withAuth(handler, [ROLES.STAFF, ROLES.ADMIN]);
+}
+
+
+/**
+ * Helper specifically for customer routes
+ */
+export function withLoginRequired<T>(
+  handler: AppRouteHandlerFn<T>
+) {
+  return withAuth(handler);
+}
+

@@ -2,23 +2,43 @@
 
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { MenuItem } from "@/constants/types"
+import { CartItemOptions, MenuItem } from "@/constants/types"
 
 import placeholderImg from "@/../public/Images/menu.png";
 import Image from "next/image";
+import { on } from "events";
 
 interface ProductBoxProps {
   item: MenuItem
   recommendedItems: MenuItem[]
+  onAddToCart : (item: MenuItem, quantity: number, options: CartItemOptions) => void
 }
 
-export default function ProductBox({ item, recommendedItems }: ProductBoxProps) {
+export default function ProductBox({ item, recommendedItems, onAddToCart }: ProductBoxProps) {
   const [quantity, setQuantity] = useState(1)
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string | string[]>>({})
+  const [selectedOptions, setSelectedOptions] = useState<CartItemOptions>({})
+  const [additionalNote, setAdditionalNote] = useState("");
 
+  const normalizedOptions = useMemo(() => {
+    if (!item.options) return []; // Return empty array if no options
+    return Array.isArray(item.options) ? item.options : [item.options];
+  }, [item.options]);
 
+  useEffect(() => {
+    const defaultSelections: CartItemOptions = {};
+    normalizedOptions.forEach(option => {
+
+      if (option.IsRequired && !option.IsExtra && option.choices.length > 0) {
+            defaultSelections[option.Question] = option.choices[0].name;
+        }
+        if (option.IsExtra) {
+            defaultSelections[option.Question] = [];
+        }
+    });
+    setSelectedOptions(defaultSelections);
+}, [normalizedOptions]);
 
   const increaseQuantity = () => {
     setQuantity((prev) => prev + 1)
@@ -30,29 +50,37 @@ export default function ProductBox({ item, recommendedItems }: ProductBoxProps) 
     }
   }
 
-  const handleOptionChange = (questionIndex: number, choice: string) => {
+  const handleOptionChange = (questionIndex: number, choiceName: string) => {
+    const option = normalizedOptions[questionIndex];
+    if (!option) return;
+
     setSelectedOptions((prev) => ({
       ...prev,
-      [item.options[questionIndex].Question]: choice,
-    }))
+      [option.Question]: choiceName,
+    }));
   }
 
-  const handleMultiOptionChange = (questionIndex: number, choice: string, isChecked: boolean) => {
-    const question = item.options[questionIndex].Question
-    const currentSelections = Array.isArray(selectedOptions[question]) ? (selectedOptions[question] as string[]) : []
+  const handleMultiOptionChange = (questionIndex: number, choiceName: string, isChecked: boolean) => {
+    const option = normalizedOptions[questionIndex];
+    if (!option || !option.IsExtra) return;
 
-    let newSelections: string[]
+    const question = option.Question;
+    const currentSelections = Array.isArray(selectedOptions[question])
+                                ? (selectedOptions[question] as string[])
+                                : [];
+
+    let newSelections: string[];
 
     if (isChecked) {
-      newSelections = [...currentSelections, choice]
+      newSelections = currentSelections.includes(choiceName) ? currentSelections : [...currentSelections, choiceName];
     } else {
-      newSelections = currentSelections.filter((c) => c !== choice)
+      newSelections = currentSelections.filter((c) => c !== choiceName);
     }
 
     setSelectedOptions((prev) => ({
       ...prev,
       [question]: newSelections,
-    }))
+    }));
   }
 
   // Animation variants
@@ -76,18 +104,14 @@ export default function ProductBox({ item, recommendedItems }: ProductBoxProps) 
     },
   }
 
-  const buttonVariants = {
-    rest: { scale: 1 },
-    hover: { scale: 1.05 },
-    tap: { scale: 0.95 },
-  }
+  const handleFinalAddToCart = () => {
+    const finalOptions = { ...selectedOptions };
+    if (additionalNote.trim()) {
+        finalOptions['_additionalNote'] = additionalNote.trim(); // Use a distinct key
+    }
+    onAddToCart(item, quantity, finalOptions);
+};
 
-  const checkboxVariants = {
-    checked: { scale: [1, 1.2, 1], transition: { duration: 0.2 } },
-    unchecked: { scale: 1 },
-  }
-
-  console.log(item)
 
   return (
     <motion.div
@@ -132,7 +156,9 @@ export default function ProductBox({ item, recommendedItems }: ProductBoxProps) 
         </motion.div>
 
         {/* Options */}
-        {item.options.map((option, optionIndex) => (
+        {item.options && 
+        (Array.isArray(item.options) ? item.options : [item.options]).map((option, optionIndex) => (
+
           <motion.div
             key={optionIndex}
             initial={{ opacity: 0, y: 20 }}
@@ -171,14 +197,13 @@ export default function ProductBox({ item, recommendedItems }: ProductBoxProps) 
                         whileHover={{ backgroundColor: "rgba(0,0,0,0.02)" }}
                       >
                         <div className="flex items-center">
-                          <motion.input
+                          <input
                             type="checkbox"
                             className="form-checkbox"
                             onChange={(e) => {
                               handleMultiOptionChange(optionIndex, choice.name, e.target.checked)
                             }}
-                            variants={checkboxVariants}
-                            animate={selectedOptions[option.Question]?.includes(choice.name) ? "checked" : "unchecked"}
+                            checked={(selectedOptions[option.Question] as string[])?.includes(choice.name) || false}
                           />
                           <span className="ml-[5px] text-grey capitalize text-normal3">{choice.name}</span>
                         </div>
@@ -246,6 +271,7 @@ export default function ProductBox({ item, recommendedItems }: ProductBoxProps) 
             animate={{ height: "auto" }}
             transition={{ delay: 0.7 }}
             whileFocus={{ borderColor: "var(--color-primary)" }}
+            onChange={(e) => setAdditionalNote(e.target.value)}
           />
         </motion.div>
 
@@ -279,7 +305,7 @@ export default function ProductBox({ item, recommendedItems }: ProductBoxProps) 
                     whileTap={{ scale: 0.9 }}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="30" height="31" viewBox="0 0 30 31" fill="none">
-                            <rect y="0.5" width="30" height="30" rx="4.5" fill="#0D0D0D" fill-opacity="0.03"/>
+                            <rect y="0.5" width="30" height="30" rx="4.5" fill="#0D0D0D" fillOpacity="0.03"/>
                             <path d="M20.0542 18.9935C19.7613 18.7006 19.2864 18.7006 18.9935 18.9935C18.7006 19.2864 18.7006 19.7613 18.9935 20.0542L20.0542 18.9935ZM21.4696 22.5303C21.7625 22.8232 22.2374 22.8232 22.5303 22.5303C22.8232 22.2374 22.8232 21.7626 22.5303 21.4697L21.4696 22.5303ZM18.9935 20.0542L21.4696 22.5303L22.5303 21.4697L20.0542 18.9935L18.9935 20.0542ZM14.5714 19.3928C11.9086 19.3928 9.75 17.2342 9.75 14.5714H8.25C8.25 18.0626 11.0802 20.8928 14.5714 20.8928V19.3928ZM19.3928 14.5714C19.3928 17.2342 17.2342 19.3928 14.5714 19.3928V20.8928C18.0626 20.8928 20.8928 18.0626 20.8928 14.5714H19.3928ZM14.5714 9.75C17.2342 9.75 19.3928 11.9086 19.3928 14.5714H20.8928C20.8928 11.0802 18.0626 8.25 14.5714 8.25V9.75ZM14.5714 8.25C11.0802 8.25 8.25 11.0802 8.25 14.5714H9.75C9.75 11.9086 11.9086 9.75 14.5714 9.75V8.25Z" fill="#4D4D4D"/>
                         </svg>
                     </motion.button>
@@ -298,7 +324,7 @@ export default function ProductBox({ item, recommendedItems }: ProductBoxProps) 
                         whileTap={{ scale: 0.9 }}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 15 15" fill="none">
-                            <path fill-rule="evenodd" clip-rule="evenodd" d="M8.19759 0.937663C8.19759 0.534955 7.87113 0.208496 7.46842 0.208496C7.06572 0.208496 6.73926 0.534955 6.73926 0.937663V6.771H0.905924C0.503217 6.771 0.176758 7.09746 0.176758 7.50016C0.176758 7.90287 0.503217 8.22933 0.905924 8.22933H6.73926V14.0627C6.73926 14.4654 7.06572 14.7918 7.46842 14.7918C7.87113 14.7918 8.19759 14.4654 8.19759 14.0627V8.22933H14.0309C14.4336 8.22933 14.7601 7.90287 14.7601 7.50016C14.7601 7.09746 14.4336 6.771 14.0309 6.771H8.19759V0.937663Z" fill="white" fill-opacity="0.8"/>
+                            <path fillRule="evenodd" clipRule="evenodd" d="M8.19759 0.937663C8.19759 0.534955 7.87113 0.208496 7.46842 0.208496C7.06572 0.208496 6.73926 0.534955 6.73926 0.937663V6.771H0.905924C0.503217 6.771 0.176758 7.09746 0.176758 7.50016C0.176758 7.90287 0.503217 8.22933 0.905924 8.22933H6.73926V14.0627C6.73926 14.4654 7.06572 14.7918 7.46842 14.7918C7.87113 14.7918 8.19759 14.4654 8.19759 14.0627V8.22933H14.0309C14.4336 8.22933 14.7601 7.90287 14.7601 7.50016C14.7601 7.09746 14.4336 6.771 14.0309 6.771H8.19759V0.937663Z" fill="white" fillOpacity="0.8"/>
                         </svg>
                     </motion.button>
                 </div>
@@ -341,7 +367,7 @@ export default function ProductBox({ item, recommendedItems }: ProductBoxProps) 
             whileTap={{ scale: 0.9 }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="10" viewBox="0 0 12 10" fill="none">
-            <path d="M1.53125 5H11.1562" stroke="#4D4D4D" stroke-width="1.375" stroke-linecap="round"/>
+            <path d="M1.53125 5H11.1562" stroke="#4D4D4D" strokeWidth="1.375" strokeLinecap="round"/>
             </svg>
           </motion.button>
 
@@ -367,7 +393,7 @@ export default function ProductBox({ item, recommendedItems }: ProductBoxProps) 
             whileTap={{ scale: 0.9 }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path fill-rule="evenodd" clip-rule="evenodd" d="M7.03125 1.1875C7.03125 0.807804 6.72345 0.5 6.34375 0.5C5.96405 0.5 5.65625 0.807804 5.65625 1.1875V5.3125H1.53125C1.15155 5.3125 0.84375 5.6203 0.84375 6C0.84375 6.3797 1.15155 6.6875 1.53125 6.6875H5.65625V10.8125C5.65625 11.1922 5.96405 11.5 6.34375 11.5C6.72345 11.5 7.03125 11.1922 7.03125 10.8125V6.6875H11.1562C11.5359 6.6875 11.8438 6.3797 11.8438 6C11.8438 5.6203 11.5359 5.3125 11.1562 5.3125H7.03125V1.1875Z" fill="#4D4D4D"/>
+                <path fillRule="evenodd" clipRule="evenodd" d="M7.03125 1.1875C7.03125 0.807804 6.72345 0.5 6.34375 0.5C5.96405 0.5 5.65625 0.807804 5.65625 1.1875V5.3125H1.53125C1.15155 5.3125 0.84375 5.6203 0.84375 6C0.84375 6.3797 1.15155 6.6875 1.53125 6.6875H5.65625V10.8125C5.65625 11.1922 5.96405 11.5 6.34375 11.5C6.72345 11.5 7.03125 11.1922 7.03125 10.8125V6.6875H11.1562C11.5359 6.6875 11.8438 6.3797 11.8438 6C11.8438 5.6203 11.5359 5.3125 11.1562 5.3125H7.03125V1.1875Z" fill="#4D4D4D"/>
             </svg>
           </motion.button>
         </div>
@@ -383,24 +409,25 @@ export default function ProductBox({ item, recommendedItems }: ProductBoxProps) 
             </motion.div>
 
             <motion.button
-            className="flex items-center justify-between rounded-[14px] rounded-tl-none px-[10px] py-[10px] bg-primary text-white text-normal3 flex-1 w-full"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+              className="flex items-center justify-between rounded-[14px] rounded-tl-none px-[10px] py-[10px] bg-primary text-white text-normal3 flex-1 w-full"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 400, damping: 10 }}
+              onClick={() => {handleFinalAddToCart()}}
             >
-            <span>Add To Cart</span>
-            <div className="flex items-center">
-                <span>{item.price}</span>
-                <motion.span
-                className="mx-[6px]"
-                animate={{ x: [0, 3, 0] }}
-                transition={{ repeat: Number.POSITIVE_INFINITY, repeatDelay: 2, duration: 0.8 }}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="9" height="16" viewBox="0 0 9 16" fill="none">
-                        <path d="M8.70711 8.70711C9.09763 8.31658 9.09763 7.68342 8.70711 7.29289L2.34315 0.928932C1.95262 0.538408 1.31946 0.538408 0.928932 0.928932C0.538408 1.31946 0.538408 1.95262 0.928932 2.34315L6.58579 8L0.928932 13.6569C0.538408 14.0474 0.538408 14.6805 0.928932 15.0711C1.31946 15.4616 1.95262 15.4616 2.34315 15.0711L8.70711 8.70711ZM7 9H8V7H7V9Z" fill="white" fill-opacity="0.8"/>
-                    </svg>
-                </motion.span>
-            </div>
+              <span>Add To Cart</span>
+              <div className="flex items-center">
+                  <span>{item.price}</span>
+                  <motion.span
+                  className="mx-[6px]"
+                  animate={{ x: [0, 3, 0] }}
+                  transition={{ repeat: Number.POSITIVE_INFINITY, repeatDelay: 2, duration: 0.8 }}
+                  >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="9" height="16" viewBox="0 0 9 16" fill="none">
+                          <path d="M8.70711 8.70711C9.09763 8.31658 9.09763 7.68342 8.70711 7.29289L2.34315 0.928932C1.95262 0.538408 1.31946 0.538408 0.928932 0.928932C0.538408 1.31946 0.538408 1.95262 0.928932 2.34315L6.58579 8L0.928932 13.6569C0.538408 14.0474 0.538408 14.6805 0.928932 15.0711C1.31946 15.4616 1.95262 15.4616 2.34315 15.0711L8.70711 8.70711ZM7 9H8V7H7V9Z" fill="white" fillOpacity="0.8"/>
+                      </svg>
+                  </motion.span>
+              </div>
             </motion.button>
         </div>
 

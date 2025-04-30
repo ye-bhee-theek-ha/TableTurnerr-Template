@@ -4,9 +4,13 @@ import { adminAuth, adminDb } from '@/lib/firebase/firebaseAdmin'; // Adjust pat
 import { DecodedIdToken } from 'firebase-admin/auth';
 
 // Import the App Router compatible withAuth HOC
-import { withAuth } from '@/utils/withAuth'; // Adjust path
+import { withLoginRequired } from '@/utils/withAuth'; // Adjust path
 
-const handleConfirmPhoneVerification = async (req: NextRequest, user: DecodedIdToken) => {
+const handleConfirmPhoneVerification = async (
+  req: NextRequest,
+  context: { params: Record<string, string | string[]> },
+  user: DecodedIdToken
+  ) => {
   const userId = user.uid; // Get user ID from the validated session cookie token
 
   console.log(`Confirming phone verification status for user ${userId} in VERIFY-PHONE API...`);
@@ -20,7 +24,6 @@ const handleConfirmPhoneVerification = async (req: NextRequest, user: DecodedIdT
     console.log(`Firestore profile updated for user ${userId}: phoneVerified=true`);
 
     // 2. Set Custom Claim (Optional: Useful for security rules or client-side checks)
-    // Get existing claims first to avoid overwriting them
     const currentClaims = (await adminAuth.getUser(userId)).customClaims || {};
     await adminAuth.setCustomUserClaims(userId, {
       ...currentClaims, // Preserve existing claims
@@ -43,6 +46,5 @@ const handleConfirmPhoneVerification = async (req: NextRequest, user: DecodedIdT
 };
 
 // --- Export protected handler ---
-// Wrap the handler logic function with the withAuth HOC
-export const POST = withAuth(handleConfirmPhoneVerification);
+export const POST = withLoginRequired(handleConfirmPhoneVerification);
 

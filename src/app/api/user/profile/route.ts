@@ -1,8 +1,8 @@
 // app/api/user/profile/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase/firebaseAdmin'; // Adjust path as needed
+import { adminAuth, adminDb } from '@/lib/firebase/firebaseAdmin'; // Adjust path as needed
 import { z } from 'zod'; // Using Zod for validation
-import { DecodedIdToken } from 'firebase-admin/auth';
+import { Auth, DecodedIdToken } from 'firebase-admin/auth';
 
 // Import the App Router compatible withAuth HOC from your middleware file
 import { withAuth } from '@/utils/withAuth'; // Adjust path if needed
@@ -19,7 +19,7 @@ const profileUpdateSchema = z.object({
 });
 
 // --- GET Handler Logic ---
-const handleGetUserProfile = async (req: NextRequest, user: DecodedIdToken) => {
+const handleGetUserProfile = async (req: NextRequest, context: { params: Record<string, string | string[]> }, user: DecodedIdToken) => {
   const userId = user.uid; // Get user ID from the authenticated user token passed by withAuth
 
   try {
@@ -56,8 +56,8 @@ const handleGetUserProfile = async (req: NextRequest, user: DecodedIdToken) => {
 };
 
 // --- PUT Handler Logic ---
-const handleUpdateUserProfile = async (req: NextRequest, user: DecodedIdToken) => {
-  const userId = user.uid; // Get user ID from the authenticated user token
+const handleUpdateUserProfile = async (req: NextRequest, context: { params: Record<string, string | string[]> }, user: DecodedIdToken) => {
+  const userId = user.uid;
 
   try {
     const body = await req.json();
@@ -78,7 +78,7 @@ const handleUpdateUserProfile = async (req: NextRequest, user: DecodedIdToken) =
     // Explicitly remove fields users should not update (redundant if not in schema, but safe)
     delete (profileDataToUpdate as any).role;
     delete (profileDataToUpdate as any).loyaltyPoints;
-    delete (profileDataToUpdate as any).email; // Prevent email changes via profile update
+    // delete (profileDataToUpdate as any).email;
 
     if (Object.keys(profileDataToUpdate).length === 0) {
       return NextResponse.json({ message: 'No valid fields provided for update.' }, { status: 400 });
@@ -87,13 +87,11 @@ const handleUpdateUserProfile = async (req: NextRequest, user: DecodedIdToken) =
     const userRef = adminDb.collection('users').doc(userId);
     await userRef.update({
       ...profileDataToUpdate,
-      updatedAt: new Date().toISOString() // Track updates
+      updatedAt: new Date().toISOString()
     });
 
-    // Optionally update Firebase Auth profile if fields like displayName, photoURL changed
-    // await adminAuth.updateUser(userId, { displayName: profileDataToUpdate.displayName, photoURL: profileDataToUpdate.photoURL });
+    await adminAuth.updateUser(userId, { displayName: profileDataToUpdate.displayName, photoURL: profileDataToUpdate.photoURL });
 
-    // Fetch the updated data to return it
     const updatedDoc = await userRef.get();
     const updatedData = updatedDoc.data();
 
@@ -116,6 +114,4 @@ const handleUpdateUserProfile = async (req: NextRequest, user: DecodedIdToken) =
 // Wrap the handler logic functions with the withAuth HOC from your middleware
 export const GET = withAuth(handleGetUserProfile);
 export const PUT = withAuth(handleUpdateUserProfile);
-// If you want to support POST as an alias for PUT:
-// export const POST = withAuth(handleUpdateUserProfile);
 

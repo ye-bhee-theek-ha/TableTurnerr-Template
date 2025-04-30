@@ -24,6 +24,11 @@ function Header(
     setIsAuthModalOpen(true);
   };
 
+  const OnLoginRequired = () => {
+    setAuthModalMode('login');
+    setIsAuthModalOpen(true);
+  };
+
 
   return (
     <div className="p-[20px] w-full">
@@ -53,7 +58,7 @@ function Header(
         <div className="flex justify-end flex-row">
           {  
             isAuthenticated ? 
-              <AnimatedCTAButton_LoggedIn cart_alerts={3} handelOrderNowClick={handleOrderNowClick}/>
+              <AnimatedCTAButton_LoggedIn handelOrderNowClick={handleOrderNowClick}/>
                : 
               <AnimatedCTAButton_LoggedOut onSignInClick={handleSignInClick} handelOrderNowClick={handleOrderNowClick}/>
           }

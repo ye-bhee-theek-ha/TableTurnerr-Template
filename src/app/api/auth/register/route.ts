@@ -20,7 +20,7 @@
           );
         }
 
-        // 1. Create the user in Firebase Auth
+        //Create the user in Firebase Auth
         const userRecord = await adminAuth.createUser({
           email: email,
           emailVerified: false,
@@ -31,10 +31,10 @@
           disabled: false,
         });
 
-        // 2. Optionally set custom claims (e.g., default role)
+        // Optionally set custom claims (e.g., default role)
         await adminAuth.setCustomUserClaims(userRecord.uid, { role: 'customer' });
 
-        // 3. Optionally create a user profile document in Firestore
+        // Optionally create a user profile document in Firestore
         const userProfile = {
             uid: userRecord.uid,
             email: userRecord.email,

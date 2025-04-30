@@ -13,7 +13,6 @@ import { auth } from '../ClientApp';
 import { doc, setDoc, getDoc, arrayUnion, updateDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from '../ClientApp';
 
-// Environment variable for restaurant ID
 const RESTAURANT_ID = process.env.NEXT_PUBLIC_FIREBASE_RESTAURANT_ID;
 
 // Create a new user with email and password

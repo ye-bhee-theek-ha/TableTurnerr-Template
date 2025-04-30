@@ -7,7 +7,7 @@ import {
   PhoneAuthProvider,
   linkWithCredential,
 } from 'firebase/auth';
-import { sendVerificationCode, clearRecaptchaVerifier } from '../firebase/services/auth'; // Assuming these are correctly defined client-side functions
+import { sendVerificationCode, clearRecaptchaVerifier } from '../firebase/services/auth'; 
 import { AuthState, User } from '@/constants/types';
 
 
@@ -76,15 +76,10 @@ export const logoutUser = createAsyncThunk(
   'auth/logoutUser',
   async (_, { rejectWithValue }) => {
     try {
-      // 1. Tell backend to clear session cookie
       await apiClient.post('/auth/logout');
-      // 2. Sign out from Firebase client-side
       await signOut(auth);
-      // 3. Clear any lingering reCAPTCHA
-      clearRecaptchaVerifier(); // Ensure this function exists and works
-      // No return value needed on success
+      clearRecaptchaVerifier();
     } catch (error: any) {
-      // Try to sign out client-side even if backend fails
       await signOut(auth).catch(err => console.error("Client signout failed during logout error:", err));
       clearRecaptchaVerifier();
       const message = error?.message || 'Logout failed';

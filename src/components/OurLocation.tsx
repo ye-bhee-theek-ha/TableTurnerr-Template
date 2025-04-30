@@ -3,25 +3,15 @@
 "use client";
 
 import { useDispatch, useSelector } from 'react-redux';
-import { 
-  getRestaurantData,
-  getAllMenuItems,
-  selectPopularItems,
-  selectCategories,
-  selectMenuItemsByCategoryName,
-  selectLoadingPriority,
-  selectMenuItems
-} from '@/lib/slices/restaurantSlice';
-
 import React from 'react';
 import { RootState } from '@/lib/store/store';
 
 
 const LocationComponent = () => {
 
-  const loadingPriority = useSelector(selectLoadingPriority);
+  const restaurantData = useSelector((state: RootState) => state.restaurant.info);
 
-  const restaurantData = useSelector((state: RootState) => state.restaurant.data);
+  console.log(restaurantData)
 
   // return (
   //   <div className="mx-[70px]">

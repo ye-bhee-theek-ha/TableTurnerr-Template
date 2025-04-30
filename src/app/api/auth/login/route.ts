@@ -22,7 +22,6 @@ export async function POST(req: NextRequest) {
     // Only process if the user just signed in in the last 5 minutes.
     // This helps mitigate replay attacks if the token was somehow stolen.
     if (new Date().getTime() / 1000 - decodedIdToken.auth_time < 5 * 60) {
-      // Create session cookie.
       const sessionCookie = await adminAuth.createSessionCookie(idToken, {
         expiresIn,
       });
@@ -34,14 +33,13 @@ export async function POST(req: NextRequest) {
       response.cookies.set('session', sessionCookie, {
         maxAge: expiresIn / 1000, // maxAge is in seconds
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+        secure: process.env.NODE_ENV === 'production',
         path: '/',
         sameSite: 'lax',
       });
 
       return response;
     } else {
-      // Token is too old. Require re-authentication.
       return NextResponse.json({ message: 'Recent sign-in required.' }, { status: 401 });
     }
   } catch (error: any) {
