@@ -32,7 +32,7 @@ const Spinner = () => <div className="animate-spin rounded-full h-4 w-4 border-b
 interface MenuItemFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (itemData: Omit<MenuItem, 'id'> | MenuItem) => Promise<boolean>; // Returns true on success
+    onSave: (itemData: Omit<MenuItem, 'id'> | MenuItem) => Promise<boolean>; 
     itemToEdit: MenuItem | null; // null if adding new item
     categories: category[]; // List of available categories
     restaurantId: string; // Needed for potential image upload path
@@ -231,7 +231,9 @@ const MenuItemFormModal: React.FC<MenuItemFormModalProps> = ({
             ...(isEditing && itemToEdit && { id: itemToEdit.id }),
         };
 
-        const success = await onSave(saveData); // Call parent save function
+        console.log("Saving menu item data:", saveData);
+
+        const success = await onSave(saveData);
 
         setIsSaving(false);
         if (!success) {
@@ -261,7 +263,7 @@ const MenuItemFormModal: React.FC<MenuItemFormModalProps> = ({
                 </div>
 
                 {/* Form Body */}
-                <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-grow">
+                <form onSubmit={handleSubmit} id='menuItemForm' className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-grow">
 
                     {/* Basic Info Row */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -398,7 +400,7 @@ const MenuItemFormModal: React.FC<MenuItemFormModalProps> = ({
                 <div className="flex justify-end items-center gap-4 p-4 border-t bg-gray-50 flex-shrink-0">
                     <button type="button" onClick={onClose} className="button-secondary">Cancel</button>
                     <button
-                        type="submit" // Connects to the form's onSubmit
+                        type="submit" 
                         form="menuItemForm" // Associate with form if needed, though usually implicit
                         disabled={isSaving}
                         className="button-primary inline-flex items-center disabled:opacity-50"

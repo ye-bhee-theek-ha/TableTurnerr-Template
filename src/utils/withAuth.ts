@@ -126,7 +126,7 @@ export function withAuth<T>(
 ) {
   return async (request: NextRequest, context: { params: Record<string, string | string[]>} ) => {
 
-    const restaurantId = context.params?.restaurantId as string | undefined;
+    const restaurantId = await context.params?.restaurantId as string | undefined;
     const rolesToCheck = requiredRoles ? (Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles]) : [];
 
 

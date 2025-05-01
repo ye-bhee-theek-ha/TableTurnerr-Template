@@ -43,8 +43,7 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
 
         try {
             // Call backend API to add the category
-            // This API needs to update the 'categories' array in the RestaurantInfo document
-            await apiClient.post(`/api/admin/restaurants/${restaurantId}/categories`, { name: trimmedName });
+            await apiClient.post(`admin/restaurants/${restaurantId}/categories`, { name: trimmedName });
             setNewCategoryName(''); // Clear input on success
             onCategoriesUpdate(); // Trigger refetch in parent
         } catch (err: any) {
@@ -74,8 +73,8 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
             // Call backend API to delete the category
             // This API needs to remove the category from the 'categories' array in RestaurantInfo
             // It might also need to handle updating menu items linked to it (e.g., set categoryId to null or a default) - depends on backend logic
-            await apiClient.delete(`/api/admin/restaurants/${restaurantId}/categories/${encodeURIComponent(categoryName)}`); // Pass name as param
-            onCategoriesUpdate(); // Trigger refetch
+            await apiClient.delete(`admin/restaurants/${restaurantId}/categories/${encodeURIComponent(categoryName)}`); // Pass name as param
+            onCategoriesUpdate();
         } catch (err: any) {
              console.error(`Error deleting category "${categoryName}":`, err);
              setError(err.response?.data?.message || err.message || "Failed to delete category.");
