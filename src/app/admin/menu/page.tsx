@@ -51,6 +51,7 @@ const AdminMenuPage: React.FC = () => {
 
     // --- Authorization ---
     // const isAuthorized = profile?.role === 'admin' || profile?.role === 'staff';
+    // TODO correct it and change profile data object in firebase auth
     const isAuthorized = true;
     useEffect(() => {
         if (profile && !isAuthorized) {
@@ -81,18 +82,18 @@ const AdminMenuPage: React.FC = () => {
 
     // --- Event Handlers ---
     const handleOpenModalForAdd = () => {
-        setEditingItem(null); // Set to null for "Add New" mode
+        setEditingItem(null); 
         setIsModalOpen(true);
     };
 
     const handleOpenModalForEdit = (item: MenuItem) => {
-        setEditingItem(item); // Set the item to edit
+        setEditingItem(item); 
         setIsModalOpen(true);
     };
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
-        setEditingItem(null); // Clear editing item on close
+        setEditingItem(null);
     };
 
     const handleSaveMenuItem = async (itemData: Omit<MenuItem, 'id'> | MenuItem) => {
@@ -100,16 +101,16 @@ const AdminMenuPage: React.FC = () => {
 
         const isEditing = 'id' in itemData && itemData.id;
         const url = isEditing
-            ? `/admin/restaurants/${restaurantId}/menu/${itemData.id}`
-            : `/admin/restaurants/${restaurantId}/menu`;
+            ? `admin/restaurants/${restaurantId}/menu/${itemData.id}`
+            : `admin/restaurants/${restaurantId}/menu`;
         const method = isEditing ? 'PUT' : 'POST';
 
         console.log(`${method} request to ${url} with data:`, itemData);
 
         try {
             // Replace with actual API call
-            // const response = await apiClient({ method, url, data: itemData });
-            // console.log("Save response:", response.data);
+            const response = await apiClient({ method, url, data: itemData });
+            console.log("Save response:", response.data);
 
             // TODO: Refetch or update Redux state locally for immediate UI update
             dispatch(fetchAllMenuItemsFromApi()); // Simple refetch for now
